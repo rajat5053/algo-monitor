@@ -1,0 +1,21 @@
+[Unit]
+Description=Algo Monitor Trading Engine & Web Terminal
+After=network.target
+
+[Service]
+Type=simple
+# If you run as a non-root user (recommended), change to your username (e.g., ubuntu)
+User=root
+WorkingDirectory=/opt/algo-monitor
+ExecStart=/opt/algo-monitor/.venv/bin/python run.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+# Security and file descriptor limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

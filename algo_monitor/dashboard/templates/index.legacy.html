@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Algo Monitor — Professional Trading Dashboard with Indian Market & Crypto sections, live LTP, option chains, and futures movers">
+    <title>Algo Monitor — Trading Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css?v={{ version }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-brand">
+                <div>
+                    <h1>⚡ Algo Monitor</h1>
+                    <div class="subtitle">Live Markets · Options · Paper Trading</div>
+                </div>
+            </div>
+            <div class="header-controls">
+                <!-- Market Toggles -->
+                <div class="market-toggles">
+                    <div class="toggle-group">
+                        <span class="toggle-label">🇮🇳 Indian</span>
+                        <label class="toggle-switch" id="toggle-indian">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-group">
+                        <span class="toggle-label">₿ Crypto</span>
+                        <label class="toggle-switch" id="toggle-crypto">
+                            <input type="checkbox" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <!-- Upstox Token Auth Badge & Refresh Button -->
+                <div class="upstox-header-auth" style="display:flex;align-items:center;gap:0.5rem;background:rgba(255,255,255,0.02);padding:0.35rem 0.75rem;border-radius:var(--radius-md);border:1px solid var(--border-subtle)">
+                    <span id="upstox-token-badge" class="badge badge-amber" style="font-size:0.75rem;padding:0.25rem 0.55rem;font-weight:600">
+                        🇮🇳 Upstox: Checking...
+                    </span>
+                    <button id="btn-header-refresh-token" style="background:var(--accent-cyan);color:#0a0f1d;border:none;padding:0.3rem 0.75rem;border-radius:6px;font-size:0.75rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:0.35rem;transition:all var(--transition-fast);">
+                        <span id="header-refresh-icon">🔄</span> <span id="header-refresh-text">Refresh Token</span>
+                    </button>
+                </div>
+
+                <div class="header-status-group">
+                    <div class="paper-banner" style="margin:0;padding:0.3rem 0.8rem;">📋 Paper Trading Only</div>
+                    <div style="display:flex;align-items:center;gap:0.5rem">
+                        <div id="status-dot" class="status-dot disconnected"></div>
+                        <span id="status-label" class="status-label">DISCONNECTED</span>
+                    </div>
+                    <span id="last-update" class="last-update">—</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="overview">Overview</button>
+            <button class="nav-tab" data-tab="indian">🇮🇳 Indian Market</button>
+            <button class="nav-tab" data-tab="crypto">₿ Crypto Market</button>
+            <button class="nav-tab" data-tab="optionchain">📊 Option Chain</button>
+            <button class="nav-tab" data-tab="positions">Positions</button>
+            <button class="nav-tab" data-tab="performance">Performance</button>
+            <button class="nav-tab" data-tab="settings">⚙️ Settings</button>
+        </nav>
+
+        <!-- ================================================================ -->
+        <!-- Tab: Overview -->
+        <!-- ================================================================ -->
+        <div id="tab-overview" class="tab-content active">
+            <!-- Key Metrics -->
+            <div class="grid-4" style="margin-bottom:1.5rem">
+                <div class="card metric">
+                    <div id="metric-balance" class="metric-value neutral">₹20,000</div>
+                    <div class="metric-label">Portfolio Balance</div>
+                </div>
+                <div class="card metric">
+                    <div id="metric-daily-pnl" class="metric-value neutral">₹0</div>
+                    <div class="metric-label">Today's P&L</div>
+                </div>
+                <div class="card metric">
+                    <div id="metric-open-positions" class="metric-value neutral">0</div>
+                    <div class="metric-label">Open Positions</div>
+                </div>
+                <div class="card metric">
+                    <div id="metric-daily-trades" class="metric-value neutral">0</div>
+                    <div class="metric-label">Today's Trades</div>
+                </div>
+            </div>
+
+            <!-- Indian Market Section (Overview) -->
+            <div id="overview-indian-section" class="market-section">
+                <div class="section-header-bar indian">
+                    <span class="section-header-icon">🇮🇳</span>
+                    <span class="section-header-title">Indian Market</span>
+                    <span class="section-header-badge" id="indian-market-status">LIVE</span>
+                </div>
+
+                <!-- Index Ticker Strip -->
+                <div class="ticker-strip" id="index-ticker-strip">
+                    <div class="ticker-card" id="ticker-NIFTY50">
+                        <div class="ticker-name">Nifty 50</div>
+                        <div class="ticker-price">—</div>
+                        <div class="ticker-change neutral">—</div>
+                    </div>
+                    <div class="ticker-card" id="ticker-BANKNIFTY">
+                        <div class="ticker-name">Bank Nifty</div>
+                        <div class="ticker-price">—</div>
+                        <div class="ticker-change neutral">—</div>
+                    </div>
+                    <div class="ticker-card" id="ticker-NIFTYAUTO">
+                        <div class="ticker-name">Nifty Auto</div>
+                        <div class="ticker-price">—</div>
+                        <div class="ticker-change neutral">—</div>
+                    </div>
+                    <div class="ticker-card" id="ticker-NIFTYMIDCAPSELECT">
+                        <div class="ticker-name">Midcap Select</div>
+                        <div class="ticker-price">—</div>
+                        <div class="ticker-change neutral">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Crypto Market Section (Overview) -->
+            <div id="overview-crypto-section" class="market-section">
+                <div class="section-header-bar crypto">
+                    <span class="section-header-icon">₿</span>
+                    <span class="section-header-title">Crypto Market</span>
+                    <span class="section-header-badge" id="crypto-market-status">LIVE</span>
+                </div>
+
+                <div class="ticker-strip" id="crypto-ticker-strip">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Scan Results -->
+            <div class="section">
+                <div class="section-title">🔍 Market Watchlist & Scan Results</div>
+                <div class="card" id="scan-results">
+                    <div class="empty-state">
+                        <div class="icon">🔍</div>
+                        <div class="title">No Scan Results Yet</div>
+                        <div class="desc">Start the monitor to scan instruments for setups</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Zones & Signals -->
+            <div class="grid-2">
+                <div class="section">
+                    <div class="section-title">📍 Active Zones</div>
+                    <div class="card" id="zones-list">
+                        <div class="empty-state">
+                            <div class="icon">📍</div>
+                            <div class="title">No Active Zones</div>
+                            <div class="desc">S/R zones will appear after scanning</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-title">🔔 Recent Signals</div>
+                    <div class="card" id="signals-list">
+                        <div class="empty-state">
+                            <div class="icon">🔔</div>
+                            <div class="title">No Active Signals</div>
+                            <div class="desc">Setups will appear when detected</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================ -->
+        <!-- Tab: Indian Market -->
+        <!-- ================================================================ -->
+        <div id="tab-indian" class="tab-content">
+            <div id="indian-disabled-notice" class="disabled-notice" style="display:none">
+                <div class="icon">🔒</div>
+                <div class="title">Indian Market Monitoring is OFF</div>
+                <div class="desc">Enable the Indian market toggle in the header to view live data</div>
+            </div>
+
+            <div id="indian-market-content">
+                <!-- Upstox Token Alert Banner -->
+                <div id="indian-token-alert-banner" class="card" style="display:none;padding:0.85rem 1.25rem;margin-bottom:1.25rem;border-left:4px solid var(--accent-amber);background:rgba(245,158,11,0.08);display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:0.8rem">
+                        <span style="font-size:1.4rem">⚠️</span>
+                        <div>
+                            <div style="font-weight:600;color:var(--accent-amber)">Upstox Token Expired or Needs Refresh</div>
+                            <div id="indian-token-alert-desc" class="text-secondary" style="font-size:0.8rem">Generate a fresh token to receive real-time Indian NSE quotes and live option chains.</div>
+                        </div>
+                    </div>
+                    <button id="btn-alert-refresh-token" style="background:var(--accent-cyan);color:#0a0f1d;border:none;padding:0.45rem 1rem;border-radius:6px;font-weight:700;font-size:0.82rem;cursor:pointer;display:inline-flex;align-items:center;gap:0.35rem">
+                        🔄 Refresh Token Now
+                    </button>
+                </div>
+
+                <!-- Indices Cards -->
+                <div class="section">
+                    <div class="section-title">📊 Indices</div>
+                    <div class="grid-4" id="indices-cards">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- F&O Securities Filter -->
+                <div class="section">
+                    <div class="section-title" style="display:flex;align-items:center;gap:1rem">
+                        <span>📈 F&O Securities</span>
+                        <div class="fno-filters">
+                            <button class="filter-btn active" data-filter="">All</button>
+                            <button class="filter-btn" data-filter="nifty50">Nifty 50</button>
+                            <button class="filter-btn" data-filter="banknifty">Bank Nifty</button>
+                            <button class="filter-btn" data-filter="niftyauto">Nifty Auto</button>
+                            <button class="filter-btn" data-filter="niftymidcapselect">Midcap Select</button>
+                        </div>
+                    </div>
+                    <div class="card" id="fno-table">
+                        <div class="empty-state">
+                            <div class="icon">📈</div>
+                            <div class="title">Loading F&O Securities...</div>
+                            <div class="desc"><div class="spinner"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================ -->
+        <!-- Tab: Crypto Market -->
+        <!-- ================================================================ -->
+        <div id="tab-crypto" class="tab-content">
+            <div id="crypto-disabled-notice" class="disabled-notice" style="display:none">
+                <div class="icon">🔒</div>
+                <div class="title">Crypto Market Monitoring is OFF</div>
+                <div class="desc">Enable the Crypto market toggle in the header to view live data</div>
+            </div>
+
+            <div id="crypto-market-content">
+                <!-- Spot Prices -->
+                <div class="section">
+                    <div class="section-title">💰 Spot Prices</div>
+                    <div class="grid-4" id="crypto-spot-cards">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Perpetual Futures -->
+                <div class="section">
+                    <div class="section-title">⚡ Perpetual Futures</div>
+                    <div class="card" id="crypto-perpetuals-table">
+                        <div class="empty-state">
+                            <div class="icon">⚡</div>
+                            <div class="title">Loading Perpetuals...</div>
+                            <div class="desc"><div class="spinner"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Futures Gainers / Losers -->
+                <div class="section">
+                    <div class="section-title">🏆 Top 10 Futures — Gainers & Losers</div>
+                    <div class="grid-2">
+                        <div class="card" id="futures-gainers">
+                            <div class="card-header">
+                                <span class="card-title text-green">▲ Top Gainers</span>
+                            </div>
+                            <div class="empty-state">
+                                <div class="icon">📊</div>
+                                <div class="title">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="card" id="futures-losers">
+                            <div class="card-header">
+                                <span class="card-title text-red">▼ Top Losers</span>
+                            </div>
+                            <div class="empty-state">
+                                <div class="icon">📊</div>
+                                <div class="title">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Crypto Options -->
+                <div class="section">
+                    <div class="section-title">🎯 Crypto Options</div>
+                    <div class="card" id="crypto-options-data">
+                        <div class="empty-state">
+                            <div class="icon">🎯</div>
+                            <div class="title">Loading Crypto Options...</div>
+                            <div class="desc"><div class="spinner"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================ -->
+        <!-- Tab: Option Chain -->
+        <!-- ================================================================ -->
+        <div id="tab-optionchain" class="tab-content">
+            <div class="section">
+                <div class="section-title" style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+                    <span>📊 Option Chain Viewer</span>
+                    <select id="oc-symbol-select" class="oc-select">
+                        <optgroup label="Indices">
+                            <option value="NIFTY50">Nifty 50</option>
+                            <option value="BANKNIFTY">Bank Nifty</option>
+                            <option value="NIFTYAUTO">Nifty Auto</option>
+                            <option value="NIFTYMIDCAPSELECT">Nifty Midcap Select</option>
+                        </optgroup>
+                        <optgroup label="Indian F&O Equities">
+                            <option value="RELIANCE">Reliance Industries</option>
+                            <option value="TCS">TCS</option>
+                            <option value="HDFCBANK">HDFC Bank</option>
+                            <option value="INFY">Infosys</option>
+                            <option value="ICICIBANK">ICICI Bank</option>
+                            <option value="TATAMOTORS">Tata Motors</option>
+                            <option value="SBIN">State Bank of India</option>
+                            <option value="MARUTI">Maruti Suzuki</option>
+                            <option value="BAJFINANCE">Bajaj Finance</option>
+                            <option value="BHARTIARTL">Bharti Airtel</option>
+                            <option value="LT">Larsen & Toubro</option>
+                        </optgroup>
+                        <optgroup label="Crypto">
+                            <option value="BTCUSD">BTC/USD (Crypto)</option>
+                            <option value="ETHUSD">ETH/USD (Crypto)</option>
+                            <option value="SOLUSD">SOL/USD (Crypto)</option>
+                        </optgroup>
+                    </select>
+                    <!-- Constituent sub-filter: visible only when an index is selected -->
+                    <span id="oc-constituent-wrap" style="display:none;align-items:center;gap:0.4rem">
+                        <span style="font-size:0.78rem;color:var(--text-muted);white-space:nowrap">Stock:</span>
+                        <select id="oc-constituent-select" class="oc-select" style="min-width:180px" onchange="window.handleConstituentChange(this.value)">
+                            <!-- Populated by JS based on the selected index -->
+                        </select>
+                    </span>
+                    <select id="oc-expiry-select" class="oc-select" style="min-width:140px">
+                        <option value="">Default Expiry</option>
+                    </select>
+                    <span id="oc-feed-badge" class="badge badge-success" style="font-size:0.75rem;padding:0.3rem 0.6rem">🟢 Real Feed</span>
+                </div>
+
+                <!-- Option Chain Info Bar -->
+                <div class="oc-info-bar" id="oc-info-bar">
+                    <div class="oc-info-item">
+                        <span class="oc-info-label">Underlying:</span>
+                        <span class="oc-info-value" id="oc-underlying" style="font-weight:700;color:var(--accent-cyan)">—</span>
+                    </div>
+                    <div class="oc-info-item">
+                        <span class="oc-info-label">Spot:</span>
+                        <span class="oc-info-value" id="oc-spot">—</span>
+                    </div>
+                    <div class="oc-info-item">
+                        <span class="oc-info-label">ATM Strike:</span>
+                        <span class="oc-info-value" id="oc-atm">—</span>
+                    </div>
+                    <div class="oc-info-item">
+                        <span class="oc-info-label">Expiry:</span>
+                        <span class="oc-info-value" id="oc-expiry">—</span>
+                    </div>
+                    <div class="oc-info-item">
+                        <span class="oc-info-label">DTE:</span>
+                        <span class="oc-info-value" id="oc-dte">—</span>
+                    </div>
+                    <div class="oc-info-item">
+                        <span class="oc-info-label">Lot Size:</span>
+                        <span class="oc-info-value" id="oc-lotsize">—</span>
+                    </div>
+                </div>
+
+                <!-- Option Chain Table -->
+                <div class="card" id="option-chain-table">
+                    <div class="empty-state">
+                        <div class="icon">📊</div>
+                        <div class="title">Select an instrument to load Option Chain</div>
+                        <div class="desc">Choose from the dropdown above</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================ -->
+        <!-- Tab: Positions -->
+        <!-- ================================================================ -->
+        <div id="tab-positions" class="tab-content">
+            <div class="section">
+                <div class="section-title">🟢 Open Positions</div>
+                <div class="card" id="open-positions">
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <div class="title">No Open Positions</div>
+                        <div class="desc">Paper trades will appear here when signals are processed</div>
+                    </div>
+                </div>
+            </div>
+            <div class="section">
+                <div class="section-title">📜 Closed Trades</div>
+                <div class="card" id="closed-trades">
+                    <div class="empty-state">
+                        <div class="icon">📊</div>
+                        <div class="title">No Closed Trades</div>
+                        <div class="desc">Completed trades will appear here</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================ -->
+        <!-- Tab: Performance -->
+        <!-- ================================================================ -->
+        <div id="tab-performance" class="tab-content">
+            <div class="section">
+                <div class="section-title">📈 Performance Summary</div>
+                <div class="card" id="performance-summary">
+                    <div class="empty-state">
+                        <div class="icon">📈</div>
+                        <div class="title">No Performance Data</div>
+                        <div class="desc">Complete some paper trades to see performance metrics</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================ -->
+        <!-- Tab: Settings & Options -->
+        <!-- ================================================================ -->
+        <div id="tab-settings" class="tab-content">
+            <!-- Upstox 2FA & Token Management Card -->
+            <div class="section" style="margin-bottom:1.5rem">
+                <div class="section-title">🇮🇳 Upstox 2FA & Access Token Management</div>
+                <div class="card" style="padding:1.5rem">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;padding-bottom:0.8rem;border-bottom:1px solid var(--border-subtle)">
+                        <div>
+                            <div style="font-weight:600">Access Token Status</div>
+                            <div class="text-secondary" style="font-size:0.8rem">Automated daily 2FA generation for NSE market data</div>
+                        </div>
+                        <span id="settings-token-status" class="badge badge-amber">CHECKING...</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:0.8rem">
+                        <span class="text-secondary">2FA Auto-Login Configured in .env</span>
+                        <span id="settings-auto-login-cfg" class="font-mono text-cyan" style="font-weight:600">—</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:0.8rem">
+                        <span class="text-secondary">Last Token Updated</span>
+                        <span id="settings-token-updated" class="font-mono text-muted">—</span>
+                    </div>
+                    <div id="settings-token-error-box" style="display:none;padding:0.75rem 1rem;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:var(--accent-red);font-size:0.82rem;margin-top:0.8rem;margin-bottom:0.8rem;word-break:break-word;">
+                        <div style="font-weight:600;margin-bottom:0.2rem">⚠️ Authentication Notice:</div>
+                        <div id="settings-token-error-text"></div>
+                    </div>
+                    <div style="display:flex;gap:0.8rem;align-items:center;margin-top:1.2rem">
+                        <button id="btn-settings-refresh-token" style="padding:0.6rem 1.25rem;border-radius:8px;background:var(--accent-primary);color:#fff;font-weight:600;font-size:0.88rem;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:0.5rem;transition:all var(--transition-fast);">
+                            <span id="settings-refresh-icon">🔄</span> <span id="settings-refresh-text">Generate & Refresh Upstox Token</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- Options Config Card -->
+                <div class="section">
+                    <div class="section-title">⚡ Options Trading Engine Configuration</div>
+                    <div class="card" style="padding:1.5rem">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;padding-bottom:0.8rem;border-bottom:1px solid var(--border-subtle)">
+                            <span style="font-weight:600">Options Module</span>
+                            <span id="cfg-opt-status" class="badge badge-accent">ACTIVE</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:0.8rem">
+                            <span class="text-secondary">Index Auto-Routing</span>
+                            <span id="cfg-opt-autoroute" class="font-mono text-cyan" style="font-weight:600">NIFTY & BANKNIFTY (ATM CE/PE)</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:0.8rem">
+                            <span class="text-secondary">Max Capital Per Trade</span>
+                            <span id="cfg-opt-capital-pct" class="font-mono text-green" style="font-weight:600">45% (~₹6,750 max outlay)</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:0.8rem">
+                            <span class="text-secondary">Max Stop Loss on Premium</span>
+                            <span id="cfg-opt-sl-pct" class="font-mono text-amber" style="font-weight:600">40% of Premium</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:0.8rem">
+                            <span class="text-secondary">Pricing & Greeks Model</span>
+                            <span class="font-mono text-primary">Black-Scholes-Merton (Δ, Γ, Θ, ν)</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between">
+                            <span class="text-secondary">Weekly Expiry Selection</span>
+                            <span class="font-mono text-primary">Thursday (NSE) / Friday (Crypto)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk & Sizing Card -->
+                <div class="section">
+                    <div class="section-title">🛡️ Quant Capital & Manageable Risk Rules</div>
+                    <div class="card" style="padding:1.5rem">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;padding-bottom:0.8rem;border-bottom:1px solid var(--border-subtle)">
+                            <span style="font-weight:600">Starting Capital</span>
+                            <span id="cfg-starting-balance" class="metric-value font-mono text-green" style="font-size:1.4rem">₹20,000</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:0.8rem">
+                            <span class="text-secondary">Broker Leverage Cap</span>
+                            <span id="cfg-leverage" class="font-mono text-cyan" style="font-weight:600">3.0x Max (Manageable)</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:0.8rem">
+                            <span class="text-secondary">Risk Per Trade Budget</span>
+                            <span id="cfg-risk-per-trade" class="font-mono text-amber" style="font-weight:600">2.0% of Capital</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:0.8rem">
+                            <span class="text-secondary">Max Simultaneous Positions</span>
+                            <span id="cfg-max-positions" class="font-mono text-primary" style="font-weight:600">3 Positions</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:0.8rem">
+                            <span class="text-secondary">Daily Loss Circuit Breaker</span>
+                            <span id="cfg-daily-loss" class="font-mono text-red" style="font-weight:600">5.0% (₹1,000 max loss)</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between">
+                            <span class="text-secondary">Trading Mode</span>
+                            <span class="badge badge-accent">PAPER SIMULATION</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v={{ version }}"></script>
+</body>
+</html>

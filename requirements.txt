@@ -1,0 +1,37 @@
+# Algo Monitor — Python Dependencies
+# Install: pip install -r requirements.txt
+
+# Web framework
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+jinja2>=3.1,<4
+
+# HTTP clients
+requests>=2.32,<3
+httpx>=0.27,<1
+
+# WebSocket
+websocket-client>=1.8,<2
+
+# Environment and config
+python-dotenv>=1.0,<2
+
+# Scheduling
+apscheduler>=3.10,<4
+
+# Data / numerics
+numpy>=2.0,<3
+pandas>=2.2,<3
+
+# Testing
+pytest>=8.0,<9
+pytest-asyncio>=0.24,<1
+
+# Telegram alerts
+python-telegram-bot>=21,<22
+
+# 2FA / TOTP authentication
+pyotp>=2.9.0
+upstox-totp>=1.0.8
+
+
