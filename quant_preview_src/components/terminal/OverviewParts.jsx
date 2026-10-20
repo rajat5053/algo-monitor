@@ -80,7 +80,7 @@ export const ChartPanel = () => {
     </>
   );
   return (
-    <Panel id="chart-panel" title={`${chartSymbol} · 5m Candles · 4h S/R Zones`} icon={CandlestickChart} right={right}
+    <Panel id="chart-panel" title={`${chartSymbol} · Multi-Timeframe Chart · S/R Zones`} icon={CandlestickChart} right={right}
       sub="TradingView Lightweight Charts — zone bands from /api/zones, trade levels from the active position" bodyClass="!p-0">
       {open && (
         <>
@@ -110,7 +110,7 @@ export const ScanTable = () => {
   const { data } = usePoll(() => get("/scan-results"), []);
   return (
     <Panel id="market-watchlist" title="Market Watchlist & Scan Results" icon={Radar} noBody
-      sub="Multi-timeframe scanner — HTF 4h zones, 5m trigger setups">
+      sub="Multi-timeframe scanner — HTF macro zones, 5m trigger setups">
       <div className="tbl-wrap" style={{ maxHeight: 440 }}>
         <table className="tbl" id="scan-results" data-testid="scan-results">
           <thead><tr><th>Instrument</th><th>Exch</th><th className="r">Last Price</th><th className="r">Chg %</th><th className="c">HTF Zones</th><th>Signal Status</th><th>Last Scanned</th><th className="r">Actions</th></tr></thead>
@@ -150,14 +150,15 @@ export const ZonesTable = () => {
     </div>
   );
   return (
-    <Panel id="active-zones" title="Active S/R Zones (4h)" icon={Crosshair} noBody right={right}>
+    <Panel id="active-zones" title="Active S/R Zones" icon={Crosshair} noBody right={right}>
       <div className="tbl-wrap" style={{ maxHeight: 360 }}>
         <table className="tbl" data-testid="zones-table">
-          <thead><tr><th>Instrument</th><th>Type</th><th className="r">Low</th><th className="r">High</th><th>Strength</th><th className="c">Touches</th></tr></thead>
+          <thead><tr><th>Instrument</th><th>TF</th><th>Type</th><th className="r">Low</th><th className="r">High</th><th>Strength</th><th className="c">Touches</th></tr></thead>
           <tbody>
-            {!data ? <SkeletonRows cols={6} /> : data.zones.length === 0 ? <EmptyRow cols={6} text="No zones" /> : data.zones.map((z) => (
+            {!data ? <SkeletonRows cols={7} /> : data.zones.length === 0 ? <EmptyRow cols={7} text="No zones" /> : data.zones.map((z) => (
               <tr key={z.id}>
                 <td className="num">{z.symbol}</td>
+                <td><Badge tone="indigo">{z.timeframe || z.interval || "HTF"}</Badge></td>
                 <td><Badge tone={z.type === "support" ? "up" : "down"}>{z.type}</Badge></td>
                 <td className="r num">{px(z.price_low)}</td>
                 <td className="r num">{px(z.price_high)}</td>

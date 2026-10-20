@@ -75,7 +75,13 @@ class TestRiskManager:
 
     def test_position_sizing_respects_risk_budget(self, risk_config):
         """Position size should not exceed the risk budget."""
-        risk_config.risk_per_trade = 0.01  # 1%
+        # Set all per-market risk fields to 1% so get_risk_per_trade() returns 1%
+        risk_config.risk_per_trade = 0.01
+        risk_config.indian_cash_risk_per_trade = 0.01
+        risk_config.indian_futures_risk_per_trade = 0.01
+        risk_config.crypto_risk_per_trade = 0.01
+        # Also raise capital cap so it's not the binding constraint
+        risk_config.max_capital_per_trade_pct = 0.5
         rm = RiskManager(risk_config)
 
         sig = self._make_signal(entry=100.0, stop=95.0, target=115.0)
@@ -89,8 +95,10 @@ class TestRiskManager:
         assert decision.approved
         # Risk per unit = 100 - 95 = 5
         # Risk budget = 1M * 0.01 = 10,000
-        # Max quantity = 10,000 / 5 = 2,000
+        # Max quantity from risk = 10,000 / 5 = 2,000
+        # Capital limit = 1M * 0.5 / 100 = 5,000 → qty_leverage = 5,000  (not binding)
         assert abs(decision.quantity - 2000) < 1
+
 
     def test_reject_bad_reward_risk(self, risk_config):
         """Should reject signals with R:R below minimum."""
@@ -398,11 +406,12 @@ class TestPerformanceAnalyser:
     def test_empty_report(self, fresh_db):
         """Should handle no trades gracefully."""
         analyser = PerformanceAnalyser(fresh_db)
-        report = analyser.generate_report()
+        report = analyser.generate_report(starting_balance=1_000_000)
 
         assert report.total_trades == 0
         assert report.win_rate == 0
         assert report.ending_balance == 1_000_000
+
 
     def test_report_with_trades(self, fresh_db, risk_config):
         """Should compute correct metrics from trades."""

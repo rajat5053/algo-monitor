@@ -42,6 +42,14 @@ def _env_int(key: str, default: int = 0) -> int:
         return default
 
 
+def _env_bool(key: str, default: bool = False) -> bool:
+    val = os.getenv(key)
+    if val is None:
+        return default
+    return val.strip().lower() in ("true", "1", "yes", "on")
+
+
+
 # ---------------------------------------------------------------------------
 # Upstox
 # ---------------------------------------------------------------------------
@@ -155,13 +163,35 @@ class FirstyContinuationConfig:
 
 @dataclass
 class ExitConfig:
-    """Configuration for advanced exit rules (trailing stops, partial profits)."""
-    trailing_stop_mode: str = "none"        # "none", "atr", "swing", "partial_plus_atr", "partial_plus_swing"
-    trailing_atr_mult: float = 2.0          # Multiplier for ATR trailing stop
-    swing_lookback: int = 3                 # Lookback for swing trailing stop
-    partial_profit_pct: float = 0.50        # Take 50% profit at partial target
-    partial_profit_r_mult: float = 1.0      # Partial target at 1.0R (or 1st opposing zone)
+    """Configuration for advanced exit rules (trailing stops, partial profits, breakeven protection)."""
+    trailing_stop_mode: str = field(
+        default_factory=lambda: _env("TRAILING_STOP_MODE", "atr")
+    )        # "none", "atr", "swing", "partial_plus_atr", "partial_plus_swing"
+    trailing_atr_mult: float = field(
+        default_factory=lambda: _env_float("TRAILING_ATR_MULT", 2.0)
+    )          # Multiplier for ATR trailing stop
+    swing_lookback: int = field(
+        default_factory=lambda: _env_int("SWING_LOOKBACK", 3)
+    )                 # Lookback for swing trailing stop
+    partial_profit_pct: float = field(
+        default_factory=lambda: _env_float("PARTIAL_PROFIT_PCT", 0.50)
+    )        # Take 50% profit at partial target
+    partial_profit_r_mult: float = field(
+        default_factory=lambda: _env_float("PARTIAL_PROFIT_R_MULT", 1.0)
+    )      # Partial target at 1.0R (or 1st opposing zone)
     move_to_breakeven_on_partial: bool = True
+
+    # Automatic Breakeven / Profit Protection
+    enable_breakeven_protection: bool = field(
+        default_factory=lambda: _env_bool("ENABLE_BREAKEVEN_PROTECTION", True)
+    )
+    breakeven_trigger_r: float = field(
+        default_factory=lambda: _env_float("BREAKEVEN_TRIGGER_R", 0.75)
+    )
+    breakeven_buffer_pct: float = field(
+        default_factory=lambda: _env_float("BREAKEVEN_BUFFER_PCT", 0.0)
+    )
+
 
 
 @dataclass
@@ -270,26 +300,65 @@ class RiskConfig:
     indian_market_capital: float = field(
         default_factory=lambda: _env_float("INDIAN_MARKET_CAPITAL", _env_float("PAPER_TRADING_BALANCE", 20_000))
     )
+
+    # Generic risk per trade (fraction of equity). Used when no market-specific
+    # override applies. Spec baseline: 0.5%.
     risk_per_trade: float = field(
-        default_factory=lambda: _env_float("RISK_PER_TRADE", 0.02)
+        default_factory=lambda: _env_float("RISK_PER_TRADE", 0.005)
     )
+
+    # Per-market risk percentages (fraction of equity per trade)
+    indian_cash_risk_per_trade: float = field(
+        default_factory=lambda: _env_float("INDIAN_CASH_RISK_PER_TRADE", 0.005)
+    )
+    indian_futures_risk_per_trade: float = field(
+        default_factory=lambda: _env_float("INDIAN_FUTURES_RISK_PER_TRADE", 0.005)
+    )
+    crypto_risk_per_trade: float = field(
+        default_factory=lambda: _env_float("CRYPTO_RISK_PER_TRADE", 0.003)
+    )
+    gold_risk_per_trade: float = field(
+        default_factory=lambda: _env_float("GOLD_RISK_PER_TRADE", 0.0025)
+    )
+
     max_positions: int = field(
         default_factory=lambda: _env_int("MAX_POSITIONS", 3)
     )
+
+    # Daily loss breaker: 2% of account equity
     max_daily_loss: float = field(
-        default_factory=lambda: _env_float("MAX_DAILY_LOSS", 0.05)
+        default_factory=lambda: _env_float("MAX_DAILY_LOSS", 0.02)
     )
+
+    # Weekly drawdown limit: 4% of peak equity
+    max_weekly_loss: float = field(
+        default_factory=lambda: _env_float("MAX_WEEKLY_LOSS", 0.04)
+    )
+
+    # Peak-to-trough drawdown limit: 8% of peak equity
+    max_peak_drawdown: float = field(
+        default_factory=lambda: _env_float("MAX_PEAK_DRAWDOWN", 0.08)
+    )
+
+    # Maximum aggregate planned open risk across all positions (1% of equity)
+    max_aggregate_open_risk: float = field(
+        default_factory=lambda: _env_float("MAX_AGGREGATE_OPEN_RISK", 0.01)
+    )
+
     min_reward_risk: float = field(
         default_factory=lambda: _env_float("MIN_REWARD_RISK", 1.5)
     )
 
-    # Leverage & Margin limits (manageable broker-like leverage)
+    # Leverage ceiling: 1x (spot/cash instruments; no margin amplification)
     max_leverage: float = field(
-        default_factory=lambda: _env_float("MAX_LEVERAGE", 3.0)
+        default_factory=lambda: _env_float("MAX_LEVERAGE", 1.0)
     )
+
+    # Maximum initial capital allocation per trade: 25% of equity
     max_capital_per_trade_pct: float = field(
-        default_factory=lambda: _env_float("MAX_CAPITAL_PER_TRADE_PCT", 0.5)
+        default_factory=lambda: _env_float("MAX_CAPITAL_PER_TRADE_PCT", 0.25)
     )
+
     usd_inr_rate: float = field(
         default_factory=lambda: _env_float("USD_INR_RATE", 85.0)
     )
@@ -303,6 +372,27 @@ class RiskConfig:
 
     # Swing position maximum holding period in calendar days (0 = unlimited)
     swing_max_days: int = 14
+
+    def get_risk_per_trade(self, exchange: str = "", symbol: str = "") -> float:
+        """
+        Return the applicable risk fraction for a given instrument.
+
+        Markets:
+          - Crypto (Delta Exchange or USD-denominated): crypto_risk_per_trade (0.3%)
+          - Indian (Upstox): indian_cash_risk_per_trade (0.5%)
+          - Fallback: risk_per_trade (0.5%)
+        """
+        sym_upper = symbol.upper()
+        is_crypto = (
+            exchange == "delta"
+            or any(c in sym_upper for c in ("BTC", "ETH", "SOL", "XRP",
+                                             "BNB", "DOGE", "AVAX",
+                                             "LINK", "NEAR", "DOT",
+                                             "SUI", "PEPE", "USD"))
+        )
+        if is_crypto:
+            return self.crypto_risk_per_trade
+        return self.indian_cash_risk_per_trade
 
 
 # ---------------------------------------------------------------------------
@@ -355,6 +445,7 @@ class Settings:
     strategy: StrategyConfig = field(default_factory=StrategyConfig)
     risk: RiskConfig = field(default_factory=RiskConfig)
     options: OptionsConfig = field(default_factory=OptionsConfig)
+    exit: ExitConfig = field(default_factory=ExitConfig)
     market_toggle: MarketToggleConfig = field(default_factory=MarketToggleConfig)
 
     database_path: str = field(

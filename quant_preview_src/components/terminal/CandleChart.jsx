@@ -37,7 +37,8 @@ function drawZones(a, overlay) {
     if (y1 == null || y2 == null) return "";
     const top = Math.min(y1, y2);
     const h = Math.max(3, Math.abs(y2 - y1));
-    return `<div class="zone-band ${z.type}" style="top:${top}px;height:${h}px"><em>4H ${z.type.toUpperCase()} · ${z.strength}%</em></div>`;
+    const tf = (z.timeframe || z.interval || ((z.symbol && z.symbol.includes("USD")) ? "1H" : "1D")).toUpperCase();
+    return `<div class="zone-band ${z.type}" style="top:${top}px;height:${h}px"><em>${tf} ${z.type.toUpperCase()} · ${z.strength}%</em></div>`;
   }).join("");
 }
 
@@ -45,8 +46,9 @@ export const CandleChart = ({ symbol, levels, height = 380, testid = "candle-cha
   const box = useRef(null);
   const overlay = useRef(null);
   const a = useRef({});
+  const [interval, setInterval] = useState("5m");
   const [zones, setZones] = useState([]);
-  const { data } = usePoll(() => get(`/candles/${encodeURIComponent(symbol)}`, { interval: "5m" }), [symbol], { interval: 10000 });
+  const { data } = usePoll(() => get(`/candles/${encodeURIComponent(symbol)}`, { interval }), [symbol, interval], { interval: 10000 });
 
   useEffect(() => {
     const created = makeChart(box.current);
@@ -95,6 +97,31 @@ export const CandleChart = ({ symbol, levels, height = 380, testid = "candle-cha
 
   return (
     <div className="chart-box" style={{ height }} data-testid={testid}>
+      <div style={{ position: "absolute", top: 8, left: 12, zIndex: 10, display: "flex", gap: 4, background: "rgba(15,23,42,0.88)", padding: "3px 6px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(8px)" }}>
+        {["5m", "15m", "1h", "4h", "1d"].map((tf) => (
+          <button
+            key={tf}
+            onClick={() => {
+              setInterval(tf);
+              if (a.current) a.current.fitted = false;
+            }}
+            style={{
+              background: interval === tf ? "#6366f1" : "transparent",
+              color: interval === tf ? "#ffffff" : "#94a3b8",
+              border: "none",
+              borderRadius: 4,
+              padding: "2px 8px",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              textTransform: "uppercase",
+              fontFamily: "JetBrains Mono, monospace",
+            }}
+          >
+            {tf}
+          </button>
+        ))}
+      </div>
       <div ref={box} style={{ position: "absolute", inset: 0 }} />
       <div ref={overlay} className="zone-overlay" style={{ bottom: 28 }} data-testid={`${testid}-zones`} />
     </div>

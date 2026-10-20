@@ -28,6 +28,13 @@ def tmp_db(tmp_path):
 
 
 @pytest.fixture
+def fresh_db(tmp_db):
+    """Alias for tmp_db."""
+    return tmp_db
+
+
+
+@pytest.fixture
 def strategy_config():
     """Default strategy config for tests."""
     return StrategyConfig(
@@ -48,15 +55,27 @@ def risk_config():
     """Default risk config for tests."""
     return RiskConfig(
         starting_balance=1_000_000,
+        # Generic fallback (overridden by per-market fields)
         risk_per_trade=0.02,
+        # Per-market risk percentages
+        indian_cash_risk_per_trade=0.02,
+        indian_futures_risk_per_trade=0.02,
+        crypto_risk_per_trade=0.02,
+        gold_risk_per_trade=0.02,
         max_positions=5,
         max_daily_loss=0.05,
+        max_weekly_loss=0.04,
+        max_peak_drawdown=0.08,
+        max_aggregate_open_risk=0.10,  # High for tests; tests that need it lower set it explicitly
         min_reward_risk=1.5,
+        max_leverage=1.0,
+        max_capital_per_trade_pct=0.5,
         fee_rate=0.0005,
         slippage_rate=0.0003,
         intraday_expiry_minutes=375,
         swing_max_days=14,
     )
+
 
 
 def make_candle(

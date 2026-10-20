@@ -11,13 +11,30 @@ echo "=========================================================="
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CURRENT_USER="$(whoami)"
 
-echo "[1/6] Updating system packages and installing prerequisites..."
+echo "[1/6] Installing Python 3.12 and prerequisites..."
 sudo apt update -y
-sudo apt install -y python3 python3-pip python3-venv python3-dev build-essential curl git ufw
+sudo apt install -y software-properties-common curl git ufw build-essential
 
-echo "[2/6] Setting up Python virtual environment in ${APP_DIR}/.venv..."
+# Ensure Python 3.12 is installed (required by upstox-totp and modern packages)
+if ! command -v python3.12 &> /dev/null; then
+    echo "--> Adding deadsnakes PPA to install Python 3.12..."
+    sudo add-apt-repository -y ppa:deadsnakes/ppa
+    sudo apt update -y
+    sudo apt install -y python3.12 python3.12-venv python3.12-dev
+fi
+
+echo "[2/6] Setting up Python 3.12 virtual environment in ${APP_DIR}/.venv..."
+# If .venv exists but is using an older python version, recreate it with 3.12
+if [ -d "${APP_DIR}/.venv" ]; then
+    VENV_PY_VER="$("${APP_DIR}/.venv/bin/python" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "0.0")"
+    if [ "${VENV_PY_VER}" != "3.12" ]; then
+        echo "--> Existing .venv is on Python ${VENV_PY_VER}, recreating with Python 3.12..."
+        rm -rf "${APP_DIR}/.venv"
+    fi
+fi
+
 if [ ! -d "${APP_DIR}/.venv" ]; then
-    python3 -m venv "${APP_DIR}/.venv"
+    python3.12 -m venv "${APP_DIR}/.venv"
 fi
 
 echo "[3/6] Installing Python dependencies..."

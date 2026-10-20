@@ -395,7 +395,8 @@ function drawZones(a, overlay) {
     if (y1 == null || y2 == null) return "";
     const top = Math.min(y1, y2);
     const h = Math.max(3, Math.abs(y2 - y1));
-    return `<div class="zone-band ${z.type}" style="top:${top}px;height:${h}px"><em>4H ${z.type.toUpperCase()} · ${z.strength}%</em></div>`;
+    const tf = (z.timeframe || z.interval || ((z.symbol && z.symbol.includes("USD")) ? "1H" : "1D")).toUpperCase();
+    return `<div class="zone-band ${z.type}" style="top:${top}px;height:${h}px"><em>${tf} ${z.type.toUpperCase()} · ${z.strength}%</em></div>`;
   }).join("");
 }
 const CandleChart = ({
@@ -409,11 +410,12 @@ const CandleChart = ({
   const overlay = (0,react__WEBPACK_IMPORTED_MODULE_0__.useRef)(null);
   const a = (0,react__WEBPACK_IMPORTED_MODULE_0__.useRef)({});
   const [zones, setZones] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)([]);
+  const [interval, setInterval] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)("5m");
   const {
     data
   } = (0,_hooks_usePoll__WEBPACK_IMPORTED_MODULE_3__.usePoll)(() => (0,_lib_api__WEBPACK_IMPORTED_MODULE_2__.get)(`/candles/${encodeURIComponent(symbol)}`, {
-    interval: "5m"
-  }), [symbol], {
+    interval: interval
+  }), [symbol, interval], {
     interval: 10000
   });
   (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {
@@ -501,6 +503,39 @@ const CandleChart = ({
     "x-id": "CandleChart_97_4",
     "x-dynamic": "false",
     children: [/*#__PURE__*/(0,react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxDEV)("div", {
+      style: {
+        position: "absolute",
+        top: 8,
+        left: 12,
+        zIndex: 10,
+        display: "flex",
+        gap: 4,
+        background: "rgba(15,23,42,0.88)",
+        padding: "3px 6px",
+        borderRadius: 6,
+        border: "1px solid rgba(255,255,255,0.12)",
+        backdropFilter: "blur(8px)"
+      },
+      children: ["5m", "15m", "1h", "4h", "1d"].map(tf => /*#__PURE__*/(0,react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxDEV)("button", {
+        onClick: () => {
+          setInterval(tf);
+          if (a.current) a.current.fitted = false;
+        },
+        style: {
+          background: interval === tf ? "#6366f1" : "transparent",
+          color: interval === tf ? "#ffffff" : "#94a3b8",
+          border: "none",
+          borderRadius: 4,
+          padding: "2px 8px",
+          fontSize: 11,
+          fontWeight: 600,
+          cursor: "pointer",
+          textTransform: "uppercase",
+          fontFamily: "JetBrains Mono, monospace"
+        },
+        children: tf
+      }, tf))
+    }, void 0, false), /*#__PURE__*/(0,react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_4__.jsxDEV)("div", {
       ref: box,
       style: {
         position: "absolute",
@@ -2733,7 +2768,7 @@ const ChartPanel = () => {
   }, void 0, true);
   return /*#__PURE__*/(0,react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_15__.jsxDEV)(_Primitives__WEBPACK_IMPORTED_MODULE_4__.Panel, {
     id: "chart-panel",
-    title: `${chartSymbol} · 5m Candles · 4h S/R Zones`,
+    title: `${chartSymbol} · Multi-Timeframe Chart · S/R Zones`,
     icon: lucide_react__WEBPACK_IMPORTED_MODULE_6__["default"],
     right: right,
     sub: "TradingView Lightweight Charts \u2014 zone bands from /api/zones, trade levels from the active position",
@@ -3589,7 +3624,7 @@ const ZonesTable = () => {
   }, undefined);
   return /*#__PURE__*/(0,react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_15__.jsxDEV)(_Primitives__WEBPACK_IMPORTED_MODULE_4__.Panel, {
     id: "active-zones",
-    title: "Active S/R Zones (4h)",
+    title: "Active S/R Zones",
     icon: lucide_react__WEBPACK_IMPORTED_MODULE_10__["default"],
     noBody: true,
     right: right,
@@ -16577,12 +16612,18 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
 (function (globalScope) {
   'use strict';
 
-  /*
-   *  decimal.js-light v2.5.1
-   *  An arbitrary-precision Decimal type for JavaScript.
-   *  https://github.com/MikeMcl/decimal.js-light
-   *  Copyright (c) 2020 Michael Mclaughlin <M8ch88l@gmail.com>
-   *  MIT Expat Licence
+  /*
+
+   *  decimal.js-light v2.5.1
+
+   *  An arbitrary-precision Decimal type for JavaScript.
+
+   *  https://github.com/MikeMcl/decimal.js-light
+
+   *  Copyright (c) 2020 Michael Mclaughlin <M8ch88l@gmail.com>
+
+   *  MIT Expat Licence
+
    */
 
   // -----------------------------------  EDITABLE DEFAULTS  ------------------------------------ //
@@ -16656,47 +16697,86 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
 
   // Decimal prototype methods
 
-  /*
-   *  absoluteValue                       abs
-   *  comparedTo                          cmp
-   *  decimalPlaces                       dp
-   *  dividedBy                           div
-   *  dividedToIntegerBy                  idiv
-   *  equals                              eq
-   *  exponent
-   *  greaterThan                         gt
-   *  greaterThanOrEqualTo                gte
-   *  isInteger                           isint
-   *  isNegative                          isneg
-   *  isPositive                          ispos
-   *  isZero
-   *  lessThan                            lt
-   *  lessThanOrEqualTo                   lte
-   *  logarithm                           log
-   *  minus                               sub
-   *  modulo                              mod
-   *  naturalExponential                  exp
-   *  naturalLogarithm                    ln
-   *  negated                             neg
-   *  plus                                add
-   *  precision                           sd
-   *  squareRoot                          sqrt
-   *  times                               mul
-   *  toDecimalPlaces                     todp
-   *  toExponential
-   *  toFixed
-   *  toInteger                           toint
-   *  toNumber
-   *  toPower                             pow
-   *  toPrecision
-   *  toSignificantDigits                 tosd
-   *  toString
-   *  valueOf                             val
+  /*
+
+   *  absoluteValue                       abs
+
+   *  comparedTo                          cmp
+
+   *  decimalPlaces                       dp
+
+   *  dividedBy                           div
+
+   *  dividedToIntegerBy                  idiv
+
+   *  equals                              eq
+
+   *  exponent
+
+   *  greaterThan                         gt
+
+   *  greaterThanOrEqualTo                gte
+
+   *  isInteger                           isint
+
+   *  isNegative                          isneg
+
+   *  isPositive                          ispos
+
+   *  isZero
+
+   *  lessThan                            lt
+
+   *  lessThanOrEqualTo                   lte
+
+   *  logarithm                           log
+
+   *  minus                               sub
+
+   *  modulo                              mod
+
+   *  naturalExponential                  exp
+
+   *  naturalLogarithm                    ln
+
+   *  negated                             neg
+
+   *  plus                                add
+
+   *  precision                           sd
+
+   *  squareRoot                          sqrt
+
+   *  times                               mul
+
+   *  toDecimalPlaces                     todp
+
+   *  toExponential
+
+   *  toFixed
+
+   *  toInteger                           toint
+
+   *  toNumber
+
+   *  toPower                             pow
+
+   *  toPrecision
+
+   *  toSignificantDigits                 tosd
+
+   *  toString
+
+   *  valueOf                             val
+
    */
 
-  /*
-   * Return a new Decimal whose value is the absolute value of this Decimal.
-   *
+  /*
+
+   * Return a new Decimal whose value is the absolute value of this Decimal.
+
+   *
+
    */
   P.absoluteValue = P.abs = function () {
     var x = new this.constructor(this);
@@ -16704,12 +16784,18 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return x;
   };
 
-  /*
-   * Return
-   *   1    if the value of this Decimal is greater than the value of `y`,
-   *  -1    if the value of this Decimal is less than the value of `y`,
-   *   0    if they have the same value
-   *
+  /*
+
+   * Return
+
+   *   1    if the value of this Decimal is greater than the value of `y`,
+
+   *  -1    if the value of this Decimal is less than the value of `y`,
+
+   *   0    if they have the same value
+
+   *
+
    */
   P.comparedTo = P.cmp = function (y) {
     var i,
@@ -16736,9 +16822,12 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return xdL === ydL ? 0 : xdL > ydL ^ x.s < 0 ? 1 : -1;
   };
 
-  /*
-   * Return the number of decimal places of the value of this Decimal.
-   *
+  /*
+
+   * Return the number of decimal places of the value of this Decimal.
+
+   *
+
    */
   P.decimalPlaces = P.dp = function () {
     var x = this,
@@ -16751,19 +16840,27 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return dp < 0 ? 0 : dp;
   };
 
-  /*
-   * Return a new Decimal whose value is the value of this Decimal divided by `y`, truncated to
-   * `precision` significant digits.
-   *
+  /*
+
+   * Return a new Decimal whose value is the value of this Decimal divided by `y`, truncated to
+
+   * `precision` significant digits.
+
+   *
+
    */
   P.dividedBy = P.div = function (y) {
     return divide(this, new this.constructor(y));
   };
 
-  /*
-   * Return a new Decimal whose value is the integer part of dividing the value of this Decimal
-   * by the value of `y`, truncated to `precision` significant digits.
-   *
+  /*
+
+   * Return a new Decimal whose value is the integer part of dividing the value of this Decimal
+
+   * by the value of `y`, truncated to `precision` significant digits.
+
+   *
+
    */
   P.dividedToIntegerBy = P.idiv = function (y) {
     var x = this,
@@ -16771,100 +16868,144 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return round(divide(x, new Ctor(y), 0, 1), Ctor.precision);
   };
 
-  /*
-   * Return true if the value of this Decimal is equal to the value of `y`, otherwise return false.
-   *
+  /*
+
+   * Return true if the value of this Decimal is equal to the value of `y`, otherwise return false.
+
+   *
+
    */
   P.equals = P.eq = function (y) {
     return !this.cmp(y);
   };
 
-  /*
-   * Return the (base 10) exponent value of this Decimal (this.e is the base 10000000 exponent).
-   *
+  /*
+
+   * Return the (base 10) exponent value of this Decimal (this.e is the base 10000000 exponent).
+
+   *
+
    */
   P.exponent = function () {
     return getBase10Exponent(this);
   };
 
-  /*
-   * Return true if the value of this Decimal is greater than the value of `y`, otherwise return
-   * false.
-   *
+  /*
+
+   * Return true if the value of this Decimal is greater than the value of `y`, otherwise return
+
+   * false.
+
+   *
+
    */
   P.greaterThan = P.gt = function (y) {
     return this.cmp(y) > 0;
   };
 
-  /*
-   * Return true if the value of this Decimal is greater than or equal to the value of `y`,
-   * otherwise return false.
-   *
+  /*
+
+   * Return true if the value of this Decimal is greater than or equal to the value of `y`,
+
+   * otherwise return false.
+
+   *
+
    */
   P.greaterThanOrEqualTo = P.gte = function (y) {
     return this.cmp(y) >= 0;
   };
 
-  /*
-   * Return true if the value of this Decimal is an integer, otherwise return false.
-   *
+  /*
+
+   * Return true if the value of this Decimal is an integer, otherwise return false.
+
+   *
+
    */
   P.isInteger = P.isint = function () {
     return this.e > this.d.length - 2;
   };
 
-  /*
-   * Return true if the value of this Decimal is negative, otherwise return false.
-   *
+  /*
+
+   * Return true if the value of this Decimal is negative, otherwise return false.
+
+   *
+
    */
   P.isNegative = P.isneg = function () {
     return this.s < 0;
   };
 
-  /*
-   * Return true if the value of this Decimal is positive, otherwise return false.
-   *
+  /*
+
+   * Return true if the value of this Decimal is positive, otherwise return false.
+
+   *
+
    */
   P.isPositive = P.ispos = function () {
     return this.s > 0;
   };
 
-  /*
-   * Return true if the value of this Decimal is 0, otherwise return false.
-   *
+  /*
+
+   * Return true if the value of this Decimal is 0, otherwise return false.
+
+   *
+
    */
   P.isZero = function () {
     return this.s === 0;
   };
 
-  /*
-   * Return true if the value of this Decimal is less than `y`, otherwise return false.
-   *
+  /*
+
+   * Return true if the value of this Decimal is less than `y`, otherwise return false.
+
+   *
+
    */
   P.lessThan = P.lt = function (y) {
     return this.cmp(y) < 0;
   };
 
-  /*
-   * Return true if the value of this Decimal is less than or equal to `y`, otherwise return false.
-   *
+  /*
+
+   * Return true if the value of this Decimal is less than or equal to `y`, otherwise return false.
+
+   *
+
    */
   P.lessThanOrEqualTo = P.lte = function (y) {
     return this.cmp(y) < 1;
   };
 
-  /*
-   * Return the logarithm of the value of this Decimal to the specified base, truncated to
-   * `precision` significant digits.
-   *
-   * If no base is specified, return log[10](x).
-   *
-   * log[base](x) = ln(x) / ln(base)
-   *
-   * The maximum error of the result is 1 ulp (unit in the last place).
-   *
-   * [base] {number|string|Decimal} The base of the logarithm.
-   *
+  /*
+
+   * Return the logarithm of the value of this Decimal to the specified base, truncated to
+
+   * `precision` significant digits.
+
+   *
+
+   * If no base is specified, return log[10](x).
+
+   *
+
+   * log[base](x) = ln(x) / ln(base)
+
+   *
+
+   * The maximum error of the result is 1 ulp (unit in the last place).
+
+   *
+
+   * [base] {number|string|Decimal} The base of the logarithm.
+
+   *
+
    */
   P.logarithm = P.log = function (base) {
     var r,
@@ -16897,10 +17038,14 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return round(r, pr);
   };
 
-  /*
-   * Return a new Decimal whose value is the value of this Decimal minus `y`, truncated to
-   * `precision` significant digits.
-   *
+  /*
+
+   * Return a new Decimal whose value is the value of this Decimal minus `y`, truncated to
+
+   * `precision` significant digits.
+
+   *
+
    */
   P.minus = P.sub = function (y) {
     var x = this;
@@ -16908,10 +17053,14 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return x.s == y.s ? subtract(x, y) : add(x, (y.s = -y.s, y));
   };
 
-  /*
-   * Return a new Decimal whose value is the value of this Decimal modulo `y`, truncated to
-   * `precision` significant digits.
-   *
+  /*
+
+   * Return a new Decimal whose value is the value of this Decimal modulo `y`, truncated to
+
+   * `precision` significant digits.
+
+   *
+
    */
   P.modulo = P.mod = function (y) {
     var q,
@@ -16933,29 +17082,42 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return x.minus(q);
   };
 
-  /*
-   * Return a new Decimal whose value is the natural exponential of the value of this Decimal,
-   * i.e. the base e raised to the power the value of this Decimal, truncated to `precision`
-   * significant digits.
-   *
+  /*
+
+   * Return a new Decimal whose value is the natural exponential of the value of this Decimal,
+
+   * i.e. the base e raised to the power the value of this Decimal, truncated to `precision`
+
+   * significant digits.
+
+   *
+
    */
   P.naturalExponential = P.exp = function () {
     return exp(this);
   };
 
-  /*
-   * Return a new Decimal whose value is the natural logarithm of the value of this Decimal,
-   * truncated to `precision` significant digits.
-   *
+  /*
+
+   * Return a new Decimal whose value is the natural logarithm of the value of this Decimal,
+
+   * truncated to `precision` significant digits.
+
+   *
+
    */
   P.naturalLogarithm = P.ln = function () {
     return ln(this);
   };
 
-  /*
-   * Return a new Decimal whose value is the value of this Decimal negated, i.e. as if multiplied by
-   * -1.
-   *
+  /*
+
+   * Return a new Decimal whose value is the value of this Decimal negated, i.e. as if multiplied by
+
+   * -1.
+
+   *
+
    */
   P.negated = P.neg = function () {
     var x = new this.constructor(this);
@@ -16963,10 +17125,14 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return x;
   };
 
-  /*
-   * Return a new Decimal whose value is the value of this Decimal plus `y`, truncated to
-   * `precision` significant digits.
-   *
+  /*
+
+   * Return a new Decimal whose value is the value of this Decimal plus `y`, truncated to
+
+   * `precision` significant digits.
+
+   *
+
    */
   P.plus = P.add = function (y) {
     var x = this;
@@ -16974,11 +17140,16 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return x.s == y.s ? add(x, y) : subtract(x, (y.s = -y.s, y));
   };
 
-  /*
-   * Return the number of significant digits of the value of this Decimal.
-   *
-   * [z] {boolean|number} Whether to count integer-part trailing zeros: true, false, 1 or 0.
-   *
+  /*
+
+   * Return the number of significant digits of the value of this Decimal.
+
+   *
+
+   * [z] {boolean|number} Whether to count integer-part trailing zeros: true, false, 1 or 0.
+
+   *
+
    */
   P.precision = P.sd = function (z) {
     var e,
@@ -17002,10 +17173,14 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return z && e > sd ? e : sd;
   };
 
-  /*
-   * Return a new Decimal whose value is the square root of this Decimal, truncated to `precision`
-   * significant digits.
-   *
+  /*
+
+   * Return a new Decimal whose value is the square root of this Decimal, truncated to `precision`
+
+   * significant digits.
+
+   *
+
    */
   P.squareRoot = P.sqrt = function () {
     var e,
@@ -17078,10 +17253,14 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return round(r, pr);
   };
 
-  /*
-   * Return a new Decimal whose value is the value of this Decimal times `y`, truncated to
-   * `precision` significant digits.
-   *
+  /*
+
+   * Return a new Decimal whose value is the value of this Decimal times `y`, truncated to
+
+   * `precision` significant digits.
+
+   *
+
    */
   P.times = P.mul = function (y) {
     var carry,
@@ -17139,15 +17318,24 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return external ? round(y, Ctor.precision) : y;
   };
 
-  /*
-   * Return a new Decimal whose value is the value of this Decimal rounded to a maximum of `dp`
-   * decimal places using rounding mode `rm` or `rounding` if `rm` is omitted.
-   *
-   * If `dp` is omitted, return a new Decimal whose value is the value of this Decimal.
-   *
-   * [dp] {number} Decimal places. Integer, 0 to MAX_DIGITS inclusive.
-   * [rm] {number} Rounding mode. Integer, 0 to 8 inclusive.
-   *
+  /*
+
+   * Return a new Decimal whose value is the value of this Decimal rounded to a maximum of `dp`
+
+   * decimal places using rounding mode `rm` or `rounding` if `rm` is omitted.
+
+   *
+
+   * If `dp` is omitted, return a new Decimal whose value is the value of this Decimal.
+
+   *
+
+   * [dp] {number} Decimal places. Integer, 0 to MAX_DIGITS inclusive.
+
+   * [rm] {number} Rounding mode. Integer, 0 to 8 inclusive.
+
+   *
+
    */
   P.toDecimalPlaces = P.todp = function (dp, rm) {
     var x = this,
@@ -17159,13 +17347,20 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return round(x, dp + getBase10Exponent(x) + 1, rm);
   };
 
-  /*
-   * Return a string representing the value of this Decimal in exponential notation rounded to
-   * `dp` fixed decimal places using rounding mode `rounding`.
-   *
-   * [dp] {number} Decimal places. Integer, 0 to MAX_DIGITS inclusive.
-   * [rm] {number} Rounding mode. Integer, 0 to 8 inclusive.
-   *
+  /*
+
+   * Return a string representing the value of this Decimal in exponential notation rounded to
+
+   * `dp` fixed decimal places using rounding mode `rounding`.
+
+   *
+
+   * [dp] {number} Decimal places. Integer, 0 to MAX_DIGITS inclusive.
+
+   * [rm] {number} Rounding mode. Integer, 0 to 8 inclusive.
+
+   *
+
    */
   P.toExponential = function (dp, rm) {
     var str,
@@ -17182,21 +17377,36 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return str;
   };
 
-  /*
-   * Return a string representing the value of this Decimal in normal (fixed-point) notation to
-   * `dp` fixed decimal places and rounded using rounding mode `rm` or `rounding` if `rm` is
-   * omitted.
-   *
-   * As with JavaScript numbers, (-0).toFixed(0) is '0', but e.g. (-0.00001).toFixed(0) is '-0'.
-   *
-   * [dp] {number} Decimal places. Integer, 0 to MAX_DIGITS inclusive.
-   * [rm] {number} Rounding mode. Integer, 0 to 8 inclusive.
-   *
-   * (-0).toFixed(0) is '0', but (-0.1).toFixed(0) is '-0'.
-   * (-0).toFixed(1) is '0.0', but (-0.01).toFixed(1) is '-0.0'.
-   * (-0).toFixed(3) is '0.000'.
-   * (-0.5).toFixed(0) is '-0'.
-   *
+  /*
+
+   * Return a string representing the value of this Decimal in normal (fixed-point) notation to
+
+   * `dp` fixed decimal places and rounded using rounding mode `rm` or `rounding` if `rm` is
+
+   * omitted.
+
+   *
+
+   * As with JavaScript numbers, (-0).toFixed(0) is '0', but e.g. (-0.00001).toFixed(0) is '-0'.
+
+   *
+
+   * [dp] {number} Decimal places. Integer, 0 to MAX_DIGITS inclusive.
+
+   * [rm] {number} Rounding mode. Integer, 0 to 8 inclusive.
+
+   *
+
+   * (-0).toFixed(0) is '0', but (-0.1).toFixed(0) is '-0'.
+
+   * (-0).toFixed(1) is '0.0', but (-0.01).toFixed(1) is '-0.0'.
+
+   * (-0).toFixed(3) is '0.000'.
+
+   * (-0.5).toFixed(0) is '-0'.
+
+   *
+
    */
   P.toFixed = function (dp, rm) {
     var str,
@@ -17214,10 +17424,14 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return x.isneg() && !x.isZero() ? '-' + str : str;
   };
 
-  /*
-   * Return a new Decimal whose value is the value of this Decimal rounded to a whole number using
-   * rounding mode `rounding`.
-   *
+  /*
+
+   * Return a new Decimal whose value is the value of this Decimal rounded to a whole number using
+
+   * rounding mode `rounding`.
+
+   *
+
    */
   P.toInteger = P.toint = function () {
     var x = this,
@@ -17225,26 +17439,41 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return round(new Ctor(x), getBase10Exponent(x) + 1, Ctor.rounding);
   };
 
-  /*
-   * Return the value of this Decimal converted to a number primitive.
-   *
+  /*
+
+   * Return the value of this Decimal converted to a number primitive.
+
+   *
+
    */
   P.toNumber = function () {
     return +this;
   };
 
-  /*
-   * Return a new Decimal whose value is the value of this Decimal raised to the power `y`,
-   * truncated to `precision` significant digits.
-   *
-   * For non-integer or very large exponents pow(x, y) is calculated using
-   *
-   *   x^y = exp(y*ln(x))
-   *
-   * The maximum error is 1 ulp (unit in last place).
-   *
-   * y {number|string|Decimal} The power to which to raise this Decimal.
-   *
+  /*
+
+   * Return a new Decimal whose value is the value of this Decimal raised to the power `y`,
+
+   * truncated to `precision` significant digits.
+
+   *
+
+   * For non-integer or very large exponents pow(x, y) is calculated using
+
+   *
+
+   *   x^y = exp(y*ln(x))
+
+   *
+
+   * The maximum error is 1 ulp (unit in last place).
+
+   *
+
+   * y {number|string|Decimal} The power to which to raise this Decimal.
+
+   *
+
    */
   P.toPower = P.pow = function (y) {
     var e,
@@ -17316,16 +17545,26 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return r;
   };
 
-  /*
-   * Return a string representing the value of this Decimal rounded to `sd` significant digits
-   * using rounding mode `rounding`.
-   *
-   * Return exponential notation if `sd` is less than the number of digits necessary to represent
-   * the integer part of the value in normal notation.
-   *
-   * [sd] {number} Significant digits. Integer, 1 to MAX_DIGITS inclusive.
-   * [rm] {number} Rounding mode. Integer, 0 to 8 inclusive.
-   *
+  /*
+
+   * Return a string representing the value of this Decimal rounded to `sd` significant digits
+
+   * using rounding mode `rounding`.
+
+   *
+
+   * Return exponential notation if `sd` is less than the number of digits necessary to represent
+
+   * the integer part of the value in normal notation.
+
+   *
+
+   * [sd] {number} Significant digits. Integer, 1 to MAX_DIGITS inclusive.
+
+   * [rm] {number} Rounding mode. Integer, 0 to 8 inclusive.
+
+   *
+
    */
   P.toPrecision = function (sd, rm) {
     var e,
@@ -17345,14 +17584,22 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return str;
   };
 
-  /*
-   * Return a new Decimal whose value is the value of this Decimal rounded to a maximum of `sd`
-   * significant digits using rounding mode `rm`, or to `precision` and `rounding` respectively if
-   * omitted.
-   *
-   * [sd] {number} Significant digits. Integer, 1 to MAX_DIGITS inclusive.
-   * [rm] {number} Rounding mode. Integer, 0 to 8 inclusive.
-   *
+  /*
+
+   * Return a new Decimal whose value is the value of this Decimal rounded to a maximum of `sd`
+
+   * significant digits using rounding mode `rm`, or to `precision` and `rounding` respectively if
+
+   * omitted.
+
+   *
+
+   * [sd] {number} Significant digits. Integer, 1 to MAX_DIGITS inclusive.
+
+   * [rm] {number} Rounding mode. Integer, 0 to 8 inclusive.
+
+   *
+
    */
   P.toSignificantDigits = P.tosd = function (sd, rm) {
     var x = this,
@@ -17367,12 +17614,18 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return round(new Ctor(x), sd, rm);
   };
 
-  /*
-   * Return a string representing the value of this Decimal.
-   *
-   * Return exponential notation if this Decimal has a positive exponent equal to or greater than
-   * `toExpPos`, or a negative exponent equal to or less than `toExpNeg`.
-   *
+  /*
+
+   * Return a string representing the value of this Decimal.
+
+   *
+
+   * Return exponential notation if this Decimal has a positive exponent equal to or greater than
+
+   * `toExpPos`, or a negative exponent equal to or less than `toExpNeg`.
+
+   *
+
    */
   P.toString = P.valueOf = P.val = P.toJSON = function () {
     var x = this,
@@ -17383,27 +17636,48 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
 
   // Helper functions for Decimal.prototype (P) and/or Decimal methods, and their callers.
 
-  /*
-   *  add                 P.minus, P.plus
-   *  checkInt32          P.todp, P.toExponential, P.toFixed, P.toPrecision, P.tosd
-   *  digitsToString      P.log, P.sqrt, P.pow, toString, exp, ln
-   *  divide              P.div, P.idiv, P.log, P.mod, P.sqrt, exp, ln
-   *  exp                 P.exp, P.pow
-   *  getBase10Exponent   P.exponent, P.sd, P.toint, P.sqrt, P.todp, P.toFixed, P.toPrecision,
-   *                      P.toString, divide, round, toString, exp, ln
-   *  getLn10             P.log, ln
-   *  getZeroString       digitsToString, toString
-   *  ln                  P.log, P.ln, P.pow, exp
-   *  parseDecimal        Decimal
-   *  round               P.abs, P.idiv, P.log, P.minus, P.mod, P.neg, P.plus, P.toint, P.sqrt,
-   *                      P.times, P.todp, P.toExponential, P.toFixed, P.pow, P.toPrecision, P.tosd,
-   *                      divide, getLn10, exp, ln
-   *  subtract            P.minus, P.plus
-   *  toString            P.toExponential, P.toFixed, P.toPrecision, P.toString, P.valueOf
-   *  truncate            P.pow
-   *
-   *  Throws:             P.log, P.mod, P.sd, P.sqrt, P.pow,  checkInt32, divide, round,
-   *                      getLn10, exp, ln, parseDecimal, Decimal, config
+  /*
+
+   *  add                 P.minus, P.plus
+
+   *  checkInt32          P.todp, P.toExponential, P.toFixed, P.toPrecision, P.tosd
+
+   *  digitsToString      P.log, P.sqrt, P.pow, toString, exp, ln
+
+   *  divide              P.div, P.idiv, P.log, P.mod, P.sqrt, exp, ln
+
+   *  exp                 P.exp, P.pow
+
+   *  getBase10Exponent   P.exponent, P.sd, P.toint, P.sqrt, P.todp, P.toFixed, P.toPrecision,
+
+   *                      P.toString, divide, round, toString, exp, ln
+
+   *  getLn10             P.log, ln
+
+   *  getZeroString       digitsToString, toString
+
+   *  ln                  P.log, P.ln, P.pow, exp
+
+   *  parseDecimal        Decimal
+
+   *  round               P.abs, P.idiv, P.log, P.minus, P.mod, P.neg, P.plus, P.toint, P.sqrt,
+
+   *                      P.times, P.todp, P.toExponential, P.toFixed, P.pow, P.toPrecision, P.tosd,
+
+   *                      divide, getLn10, exp, ln
+
+   *  subtract            P.minus, P.plus
+
+   *  toString            P.toExponential, P.toFixed, P.toPrecision, P.toString, P.valueOf
+
+   *  truncate            P.pow
+
+   *
+
+   *  Throws:             P.log, P.mod, P.sd, P.sqrt, P.pow,  checkInt32, divide, round,
+
+   *                      getLn10, exp, ln, parseDecimal, Decimal, config
+
    */
 
   function add(x, y) {
@@ -17738,27 +18012,48 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     };
   }();
 
-  /*
-   * Return a new Decimal whose value is the natural exponential of `x` truncated to `sd`
-   * significant digits.
-   *
-   * Taylor/Maclaurin series.
-   *
-   * exp(x) = x^0/0! + x^1/1! + x^2/2! + x^3/3! + ...
-   *
-   * Argument reduction:
-   *   Repeat x = x / 32, k += 5, until |x| < 0.1
-   *   exp(x) = exp(x / 2^k)^(2^k)
-   *
-   * Previously, the argument was initially reduced by
-   * exp(x) = exp(r) * 10^k  where r = x - k * ln10, k = floor(x / ln10)
-   * to first put r in the range [0, ln10], before dividing by 32 until |x| < 0.1, but this was
-   * found to be slower than just dividing repeatedly by 32 as above.
-   *
-   * (Math object integer min/max: Math.exp(709) = 8.2e+307, Math.exp(-745) = 5e-324)
-   *
-   *  exp(x) is non-terminating for any finite, non-zero x.
-   *
+  /*
+
+   * Return a new Decimal whose value is the natural exponential of `x` truncated to `sd`
+
+   * significant digits.
+
+   *
+
+   * Taylor/Maclaurin series.
+
+   *
+
+   * exp(x) = x^0/0! + x^1/1! + x^2/2! + x^3/3! + ...
+
+   *
+
+   * Argument reduction:
+
+   *   Repeat x = x / 32, k += 5, until |x| < 0.1
+
+   *   exp(x) = exp(x / 2^k)^(2^k)
+
+   *
+
+   * Previously, the argument was initially reduced by
+
+   * exp(x) = exp(r) * 10^k  where r = x - k * ln10, k = floor(x / ln10)
+
+   * to first put r in the range [0, ln10], before dividing by 32 until |x| < 0.1, but this was
+
+   * found to be slower than just dividing repeatedly by 32 as above.
+
+   *
+
+   * (Math object integer min/max: Math.exp(709) = 8.2e+307, Math.exp(-745) = 5e-324)
+
+   *
+
+   *  exp(x) is non-terminating for any finite, non-zero x.
+
+   *
+
    */
   function exp(x, sd) {
     var denominator,
@@ -17829,12 +18124,18 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return zs;
   }
 
-  /*
-   * Return a new Decimal whose value is the natural logarithm of `x` truncated to `sd` significant
-   * digits.
-   *
-   *  ln(n) is non-terminating (n != 1)
-   *
+  /*
+
+   * Return a new Decimal whose value is the natural logarithm of `x` truncated to `sd` significant
+
+   * digits.
+
+   *
+
+   *  ln(n) is non-terminating (n != 1)
+
+   *
+
    */
   function ln(y, sd) {
     var c,
@@ -17934,8 +18235,10 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     }
   }
 
-  /*
-   * Parse the value of a new Decimal `x` from string `str`.
+  /*
+
+   * Parse the value of a new Decimal `x` from string `str`.
+
    */
   function parseDecimal(x, str) {
     var e, i, len;
@@ -17992,8 +18295,10 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return x;
   }
 
-  /*
-   * Round `x` to `sd` significant digits, using rounding mode `rm` if present (truncate otherwise).
+  /*
+
+   * Round `x` to `sd` significant digits, using rounding mode `rm` if present (truncate otherwise).
+
    */
   function round(x, sd, rm) {
     var i,
@@ -18261,25 +18566,38 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
 
   // Decimal methods
 
-  /*
-   *  clone
-   *  config/set
+  /*
+
+   *  clone
+
+   *  config/set
+
    */
 
-  /*
-   * Create and return a Decimal constructor with the same configuration properties as this Decimal
-   * constructor.
-   *
+  /*
+
+   * Create and return a Decimal constructor with the same configuration properties as this Decimal
+
+   * constructor.
+
+   *
+
    */
   function clone(obj) {
     var i, p, ps;
 
-    /*
-     * The Decimal constructor and exported function.
-     * Return a new Decimal instance.
-     *
-     * value {number|string|Decimal} A numeric value.
-     *
+    /*
+
+     * The Decimal constructor and exported function.
+
+     * Return a new Decimal instance.
+
+     *
+
+     * value {number|string|Decimal} A numeric value.
+
+     *
+
      */
     function Decimal(value) {
       var x = this;
@@ -18356,18 +18674,30 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js-light v2.5.1 https://github.com
     return Decimal;
   }
 
-  /*
-   * Configure global settings for a Decimal constructor.
-   *
-   * `obj` is an object with one or more of the following properties,
-   *
-   *   precision  {number}
-   *   rounding   {number}
-   *   toExpNeg   {number}
-   *   toExpPos   {number}
-   *
-   * E.g. Decimal.config({ precision: 20, rounding: 4 })
-   *
+  /*
+
+   * Configure global settings for a Decimal constructor.
+
+   *
+
+   * `obj` is an object with one or more of the following properties,
+
+   *
+
+   *   precision  {number}
+
+   *   rounding   {number}
+
+   *   toExpNeg   {number}
+
+   *   toExpPos   {number}
+
+   *
+
+   * E.g. Decimal.config({ precision: 20, rounding: 4 })
+
+   *
+
    */
   function config(obj) {
     if (!obj || typeof obj !== 'object') {
@@ -113091,19 +113421,32 @@ function isFulfilledLineData(data) {
   return data.value !== undefined;
 }
 
-/******************************************************************************
-Copyright (c) Microsoft Corporation.
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
+/******************************************************************************
+
+Copyright (c) Microsoft Corporation.
+
+
+
+Permission to use, copy, modify, and/or distribute this software for any
+
+purpose with or without fee is hereby granted.
+
+
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+
+PERFORMANCE OF THIS SOFTWARE.
+
 ***************************************************************************** */
 /* global Reflect, Promise */
 

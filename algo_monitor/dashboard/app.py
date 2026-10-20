@@ -757,15 +757,15 @@ def create_app(db: Database | None = None) -> FastAPI:
             risk = abs(entry - stop)
 
             is_usd = str(sym).endswith("USD")
-            currency = "USD" if is_usd else "INR"
+            currency = "INR"
 
             if entry > 0 and qty > 0 and current_price > 0:
                 pnl = (current_price - entry) * qty if direction == "long" else (entry - current_price) * qty
             else:
                 pnl = float(pos.get("net_pnl") or 0)
 
-            unrealized_pnl = round(pnl, 2)
-            unrealized_pnl_inr = round(pnl * 85.0, 2) if is_usd else unrealized_pnl
+            unrealized_pnl_inr = round(pnl * 85.0, 2) if is_usd else round(pnl, 2)
+            unrealized_pnl = unrealized_pnl_inr
 
             # Progress metrics
             if direction == "long":
@@ -814,7 +814,7 @@ def create_app(db: Database | None = None) -> FastAPI:
                 "stop_loss": stop,
                 "target": target,
                 "take_profit": target,
-                "currency": currency,
+                "currency": "INR",
                 "trade_type": pos.get("trade_type") or "intraday",
                 "setup": pos.get("setup") or "bounce_support",
                 "opened_at": pos.get("entry_time"),
@@ -861,9 +861,10 @@ def create_app(db: Database | None = None) -> FastAPI:
             t["exit"] = float(t.get("exit_price") or 0)
             t["pnl"] = float(t.get("net_pnl") or 0)
             t["realized_pnl"] = t["pnl"]
-            t["currency"] = "USD" if is_usd else "INR"
+            t["currency"] = "INR"
             t["trade_type"] = t.get("trade_type") or "intraday"
             t["exit_reason"] = t.get("exit_reason") or "TARGET"
+            t["exit_description"] = t.get("exit_description") or ""
             t["opened_at"] = t.get("entry_time")
             t["execution_time"] = t.get("entry_time")
             t["closed_at"] = t.get("exit_time")
@@ -904,7 +905,7 @@ def create_app(db: Database | None = None) -> FastAPI:
                     "risk_reward": round(s.risk_reward, 2) if getattr(s, "risk_reward", None) is not None else 1.8,
                     "strength": round(s.strength, 2) if getattr(s, "strength", None) is not None else 0.0,
                     "reason": getattr(s, "reason", "")[:200],
-                    "timeframe": "5m / 4h",
+                    "timeframe": f"5m / {'1d' if (sym in ('NIFTY50', 'BANKNIFTY', 'RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ICICIBANK')) else '1h'}",
                     "status": "ACTIVE",
                     "timestamp": s_created.isoformat() if hasattr(s_created, "isoformat") else str(s_created),
                     "created_at": s_created.isoformat() if hasattr(s_created, "isoformat") else str(s_created),
@@ -920,9 +921,11 @@ def create_app(db: Database | None = None) -> FastAPI:
                 sig = dict(r)
                 stype = sig.get("setup_type", "bounce_support")
                 sdir = (sig.get("direction") or "BUY").upper()
+                sym = sig.get("symbol", "")
+                is_ind = sym in ("NIFTY50", "BANKNIFTY", "RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK")
                 signals.append({
                     "id": str(sig.get("id")),
-                    "symbol": sig.get("symbol"),
+                    "symbol": sym,
                     "setup": stype,
                     "type": stype,
                     "setup_type": stype,
@@ -935,7 +938,7 @@ def create_app(db: Database | None = None) -> FastAPI:
                     "rr": 1.8,
                     "risk_reward": 1.8,
                     "strength": 0.85,
-                    "timeframe": "5m / 4h",
+                    "timeframe": f"5m / {'1d' if is_ind else '1h'}",
                     "status": "ACTIVE",
                     "timestamp": sig.get("created_at"),
                     "created_at": sig.get("created_at"),
@@ -956,6 +959,9 @@ def create_app(db: Database | None = None) -> FastAPI:
             if symbol and sym != symbol:
                 continue
             exch = r.get("exchange", "")
+            is_indian = (exch == "upstox" or not (sym.endswith("USD") or sym.endswith("PERP")))
+            default_htf = "1d" if is_indian else "1h"
+
             for idx, z in enumerate(r.get("htf_zones", [])):
                 z_type = z.zone_type.value if hasattr(z, "zone_type") else str(getattr(z, "zone_type", "support"))
                 z_low = float(z.price_low if hasattr(z, "price_low") else getattr(z, "price_low", 0))
@@ -963,6 +969,7 @@ def create_app(db: Database | None = None) -> FastAPI:
                 z_strength = float(z.strength if hasattr(z, "strength") else getattr(z, "strength", 0.85))
                 z_touches = int(z.touches if hasattr(z, "touches") else getattr(z, "touches", 3))
                 strength_pct = int(z_strength * 100) if z_strength <= 1.0 else int(z_strength)
+                ztf = getattr(z, "timeframe", None) or getattr(z, "interval", None) or default_htf
                 zones.append({
                     "id": f"{sym}-z{idx}",
                     "symbol": sym,
@@ -975,7 +982,8 @@ def create_app(db: Database | None = None) -> FastAPI:
                     "price_high": z_high,
                     "strength": strength_pct,
                     "touches": z_touches,
-                    "timeframe": "4h",
+                    "timeframe": ztf.upper(),
+                    "interval": ztf.lower(),
                     "is_broken": bool(getattr(z, "is_broken", False)),
                 })
 
@@ -989,6 +997,11 @@ def create_app(db: Database | None = None) -> FastAPI:
             rows = db.fetchall(query, tuple(params))
             for idx, r in enumerate(rows):
                 d = dict(r)
+                sym = d.get("symbol", "")
+                exch = d.get("exchange", "")
+                is_indian = (exch == "upstox" or not (sym.endswith("USD") or sym.endswith("PERP")))
+                default_htf = "1d" if is_indian else "1h"
+                ztf = d.get("interval") or default_htf
                 z_type = d.get("zone_type", "support")
                 z_low = float(d.get("price_low", 0))
                 z_high = float(d.get("price_high", 0))
@@ -996,7 +1009,7 @@ def create_app(db: Database | None = None) -> FastAPI:
                 strength_pct = int(z_strength * 100) if z_strength <= 1.0 else int(z_strength)
                 zones.append({
                     "id": str(d.get("id") or f"{d.get('symbol')}-z{idx}"),
-                    "symbol": d.get("symbol"),
+                    "symbol": sym,
                     "type": z_type,
                     "zone_type": z_type,
                     "low": z_low,
@@ -1005,7 +1018,8 @@ def create_app(db: Database | None = None) -> FastAPI:
                     "price_high": z_high,
                     "strength": strength_pct,
                     "touches": int(d.get("touches", 3)),
-                    "timeframe": "4h",
+                    "timeframe": ztf.upper(),
+                    "interval": ztf.lower(),
                 })
 
         zones.sort(key=lambda x: x["strength"], reverse=True)
@@ -1016,21 +1030,32 @@ def create_app(db: Database | None = None) -> FastAPI:
     @app.get("/api/candles/{symbol}")
     async def api_candles(symbol: str, exchange: str = "delta", interval: str = "5m", limit: int = 200):
         """Candle data formatted for TradingView Lightweight Charts."""
+        norm_interval = interval.lower()
+        aliases = [norm_interval]
+        if norm_interval in ("1d", "day"):
+            aliases = ["1d", "day"]
+        elif norm_interval in ("5m", "5minute"):
+            aliases = ["5m", "5minute"]
+        elif norm_interval in ("1h", "60m"):
+            aliases = ["1h", "60m"]
+        elif norm_interval in ("4h", "240m"):
+            aliases = ["4h", "240m"]
+
+        placeholders = ",".join("?" * len(aliases))
         rows = db.fetchall(
-            """SELECT timestamp, open, high, low, close, volume
+            f"""SELECT timestamp, open, high, low, close, volume
                FROM candles
-               WHERE symbol = ?
+               WHERE symbol = ? AND interval IN ({placeholders})
                ORDER BY timestamp DESC LIMIT ?""",
-            (symbol, limit),
+            (symbol, *aliases, limit),
         )
         if not rows:
-            # Fall back to Delta or Upstox
             rows = db.fetchall(
                 """SELECT timestamp, open, high, low, close, volume
                    FROM candles
-                   WHERE symbol = ? AND interval = ?
+                   WHERE symbol = ?
                    ORDER BY timestamp DESC LIMIT ?""",
-                (symbol, interval, limit),
+                (symbol, limit),
             )
 
         candles = []
@@ -1146,13 +1171,279 @@ def create_app(db: Database | None = None) -> FastAPI:
             "currency": "INR",
         }
 
+    # ----- P&L Report (realized / unrealized / summary) -----
+
+    @app.get("/api/pnl/realized")
+    async def api_pnl_realized(
+        start_date: str = "",
+        end_date: str = "",
+        trading_mode: str = "all",
+        symbol: str = "",
+        fy: str = "",          # e.g. "2025-26" for FY Apr-2025 to Mar-2026
+    ):
+        """
+        Realized P&L with full trade history, charges breakdown, and date-range filters.
+
+        Query params:
+          start_date  YYYY-MM-DD (exit date)
+          end_date    YYYY-MM-DD (exit date)
+          trading_mode  all | intraday | swing
+          symbol      filter to specific symbol
+          fy          Indian financial year e.g. '2025-26' (overrides start/end_date)
+        """
+        from algo_monitor.config.settings import get_settings
+
+        settings = get_settings()
+        starting_bal = settings.risk.starting_balance
+
+        # Resolve FY dates
+        if fy and not start_date and not end_date:
+            try:
+                fy_start_year = int(fy.split("-")[0])
+                start_date = f"{fy_start_year}-04-01"
+                end_date   = f"{fy_start_year + 1}-03-31"
+            except Exception:
+                pass
+
+        sql = "SELECT * FROM trades WHERE status = 'closed'"
+        params: list = []
+
+        if trading_mode != "all":
+            sql += " AND trading_mode = ?"
+            params.append(trading_mode)
+        if symbol:
+            sql += " AND symbol = ?"
+            params.append(symbol.upper())
+        if start_date:
+            sql += " AND exit_time >= ?"
+            params.append(start_date)
+        if end_date:
+            sql += " AND exit_time <= ?"
+            params.append(end_date + "T23:59:59")
+
+        sql += " ORDER BY exit_time DESC"
+        rows = db.fetchall(sql, tuple(params))
+
+        trades_out = []
+        total_gross = 0.0
+        total_fees = 0.0
+        total_slippage = 0.0
+        total_net = 0.0
+        wins = 0
+        losses = 0
+
+        for r in rows:
+            t = dict(r)
+            net = float(t.get("net_pnl") or 0)
+            gross = float(t.get("gross_pnl") or 0)
+            fee = float(t.get("fees") or 0)
+            slip = float(t.get("slippage") or 0)
+            total_gross += gross
+            total_fees += fee
+            total_slippage += slip
+            total_net += net
+            if net >= 0:
+                wins += 1
+            else:
+                losses += 1
+
+            sym = t.get("symbol", "")
+            is_usd = str(sym).endswith("USD")
+            trades_out.append({
+                "id": t.get("id"),
+                "symbol": sym,
+                "exchange": t.get("exchange", ""),
+                "direction": (t.get("direction") or "long").upper(),
+                "trading_mode": t.get("trading_mode") or "intraday",
+                "quantity": float(t.get("quantity") or 0),
+                "remaining_quantity": float(t.get("remaining_quantity") or t.get("quantity") or 0),
+                "entry_price": float(t.get("entry_price") or 0),
+                "exit_price": float(t.get("exit_price") or 0),
+                "initial_stop_loss": float(t.get("initial_stop_loss") or t.get("stop_loss") or 0),
+                "stop_loss": float(t.get("stop_loss") or 0),
+                "initial_target": float(t.get("initial_target") or t.get("target") or 0),
+                "target": float(t.get("target") or 0),
+                "entry_time": t.get("entry_time"),
+                "exit_time": t.get("exit_time"),
+                "exit_reason": t.get("exit_reason") or "",
+                "exit_description": t.get("exit_description") or "",
+                "gross_pnl": round(gross, 2),
+                "fees": round(fee, 2),
+                "slippage": round(slip, 2),
+                "net_pnl": round(net, 2),
+                "risk_amount": float(t.get("risk_amount") or 0),
+                "capital_utilized": float(t.get("capital_utilized") or 0),
+                "leverage": float(t.get("leverage") or 1.0),
+                "currency": "USD" if is_usd else "INR",
+                "partial_taken": bool(t.get("partial_taken", 0)),
+                "realized_partial_pnl": float(t.get("realized_partial_pnl") or 0),
+                "result": "win" if net >= 0 else "loss",
+            })
+
+        total_trades = len(trades_out)
+        win_rate = round(wins / total_trades * 100, 1) if total_trades > 0 else 0.0
+        net_return_pct = round(total_net / starting_bal * 100, 2) if starting_bal > 0 else 0.0
+
+        return {
+            "start_date": start_date,
+            "end_date": end_date,
+            "trading_mode": trading_mode,
+            "symbol_filter": symbol,
+            "fy": fy,
+            "currency": "INR",
+            "starting_balance": starting_bal,
+            "summary": {
+                "total_trades": total_trades,
+                "wins": wins,
+                "losses": losses,
+                "win_rate_pct": win_rate,
+                "gross_pnl": round(total_gross, 2),
+                "total_fees": round(total_fees, 2),
+                "total_slippage": round(total_slippage, 2),
+                "total_charges": round(total_fees + total_slippage, 2),
+                "net_pnl": round(total_net, 2),
+                "net_return_pct": net_return_pct,
+            },
+            "charges": {
+                "brokerage": round(total_fees * 0.6, 2),
+                "stt": round(total_fees * 0.15, 2),
+                "exchange_txn": round(total_fees * 0.1, 2),
+                "gst": round(total_fees * 0.1, 2),
+                "sebi": round(total_fees * 0.03, 2),
+                "stamp": round(total_fees * 0.02, 2),
+                "slippage": round(total_slippage, 2),
+            },
+            "trades": trades_out,
+        }
+
+    @app.get("/api/pnl/unrealized")
+    async def api_pnl_unrealized():
+        """
+        Unrealized P&L for all open positions enriched with current prices,
+        capital utilized, and risk metrics.
+        """
+        from algo_monitor.config.settings import get_settings
+        settings = get_settings()
+        _refresh_live_prices(app, db)
+
+        open_trades = db.fetchall("SELECT * FROM trades WHERE status = 'open' ORDER BY entry_time DESC")
+        positions_out = []
+        total_unrealized = 0.0
+        total_capital_utilized = 0.0
+        total_risk = 0.0
+        usd_inr = settings.risk.usd_inr_rate
+
+        for r in open_trades:
+            pos = dict(r)
+            sym = pos.get("symbol", "")
+            direction = pos.get("direction", "long")
+            is_usd = str(sym).endswith("USD")
+            fx_rate = usd_inr if is_usd else 1.0
+
+            price_data = _get_cached_price(app, sym)
+            current_price = float(price_data.get("ltp") or pos.get("entry_price") or 0)
+            entry = float(pos.get("entry_price") or 0)
+            qty = float(pos.get("remaining_quantity") or pos.get("quantity") or 0)
+            sl = float(pos.get("stop_loss") or 0)
+            target = float(pos.get("target") or 0)
+            capital_util = float(pos.get("capital_utilized") or (entry * qty * fx_rate))
+            risk_amt = float(pos.get("risk_amount") or 0)
+
+            if entry > 0 and qty > 0 and current_price > 0:
+                unrealized = ((current_price - entry) * qty if direction == "long"
+                              else (entry - current_price) * qty) * fx_rate
+            else:
+                unrealized = 0.0
+
+            # Risk metrics
+            risk_per_unit = abs(entry - sl)
+            if risk_per_unit > 0 and entry > 0:
+                r_achieved = ((current_price - entry) / risk_per_unit if direction == "long"
+                              else (entry - current_price) / risk_per_unit)
+            else:
+                r_achieved = 0.0
+
+            dist_to_target = abs(target - entry)
+            progress_pct = (abs(current_price - entry) / dist_to_target * 100) if dist_to_target > 0 else 0.0
+
+            total_unrealized += unrealized
+            total_capital_utilized += capital_util
+            total_risk += risk_amt
+
+            positions_out.append({
+                "id": pos.get("id"),
+                "symbol": sym,
+                "exchange": pos.get("exchange", ""),
+                "direction": direction.upper(),
+                "trading_mode": pos.get("trading_mode") or "intraday",
+                "quantity": float(pos.get("quantity") or 0),
+                "remaining_quantity": qty,
+                "entry_price": entry,
+                "current_price": round(current_price, 4),
+                "initial_stop_loss": float(pos.get("initial_stop_loss") or sl),
+                "stop_loss": sl,
+                "target": target,
+                "initial_target": float(pos.get("initial_target") or target),
+                "entry_time": pos.get("entry_time"),
+                "currency": "USD" if is_usd else "INR",
+                "capital_utilized": round(capital_util, 2),
+                "risk_amount": round(risk_amt, 2),
+                "leverage": float(pos.get("leverage") or 1.0),
+                "unrealized_pnl": round(unrealized, 2),
+                "unrealized_pnl_inr": round(unrealized, 2),
+                "r_achieved": round(r_achieved, 2),
+                "progress_to_target_pct": round(min(progress_pct, 100.0), 1),
+                "partial_taken": bool(pos.get("partial_taken", 0)),
+                "realized_partial_pnl": float(pos.get("realized_partial_pnl") or 0),
+                "trailing_mode": pos.get("trailing_mode") or "none",
+            })
+
+        return {
+            "currency": "INR",
+            "positions": positions_out,
+            "summary": {
+                "open_positions": len(positions_out),
+                "total_unrealized_pnl": round(total_unrealized, 2),
+                "total_capital_utilized": round(total_capital_utilized, 2),
+                "total_risk_deployed": round(total_risk, 2),
+            },
+        }
+
+    @app.get("/api/pnl/summary")
+    async def api_pnl_summary(fy: str = ""):
+        """Combined realized + unrealized P&L summary with FY support."""
+        from algo_monitor.config.settings import get_settings
+        settings = get_settings()
+
+        realized_data = await api_pnl_realized(fy=fy) if fy else await api_pnl_realized()
+        unrealized_data = await api_pnl_unrealized()
+        bal_data = await api_balance()
+
+        return {
+            "currency": "INR",
+            "starting_balance": settings.risk.starting_balance,
+            "balance": bal_data["balance"],
+            "equity": bal_data["equity"],
+            "realized": realized_data["summary"],
+            "unrealized": unrealized_data["summary"],
+            "risk_limits": {
+                "daily_loss_limit_pct": settings.risk.max_daily_loss * 100,
+                "weekly_loss_limit_pct": settings.risk.max_weekly_loss * 100,
+                "peak_drawdown_limit_pct": settings.risk.max_peak_drawdown * 100,
+                "aggregate_open_risk_pct": settings.risk.max_aggregate_open_risk * 100,
+                "daily_loss_used": bal_data["daily_loss_used"],
+                "circuit_breaker_tripped": bal_data["circuit_breaker_tripped"],
+            },
+        }
+
     # ----- Portfolio Balance -----
 
     @app.get("/api/balance")
     async def api_balance():
         """Current balance, equity, and daily risk circuit breaker metrics."""
         from algo_monitor.config.settings import get_settings
-        default_bal = get_settings().risk.starting_balance
+        settings = get_settings()
+        default_bal = settings.risk.starting_balance
         balance = float(db.get_state("paper_balance", str(default_bal)))
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
@@ -1161,10 +1452,13 @@ def create_app(db: Database | None = None) -> FastAPI:
         daily_pnl = float(daily_dict.get("realised_pnl") or 0.0)
         trade_count = int(daily_dict.get("trade_count") or 0)
 
-        # Open positions & margin
+        # Open positions & unrealized P&L
         open_trades = db.fetchall("SELECT * FROM trades WHERE status = 'open'")
         unrealized_pnl = 0.0
         used_margin = 0.0
+        usd_inr = settings.risk.usd_inr_rate
+        max_leverage = settings.risk.max_leverage
+
         for r in open_trades:
             pos = dict(r)
             sym = pos.get("symbol", "")
@@ -1172,19 +1466,26 @@ def create_app(db: Database | None = None) -> FastAPI:
             price_data = _get_cached_price(app, sym)
             current_price = float(price_data.get("ltp") or pos.get("entry_price") or 0)
             entry = float(pos.get("entry_price") or 0)
-            qty = float(pos.get("quantity") or 0)
+            qty = float(pos.get("remaining_quantity") or pos.get("quantity") or 0)
+            is_usd_sym = str(sym).endswith("USD")
+            fx_rate = usd_inr if is_usd_sym else 1.0
+
             if entry > 0 and qty > 0 and current_price > 0:
                 pnl = (current_price - entry) * qty if direction == "long" else (entry - current_price) * qty
-                if str(sym).endswith("USD"):
-                    pnl = pnl * 85.0
-                unrealized_pnl += pnl
-                used_margin += (entry * qty) / 3.0
+                unrealized_pnl += pnl * fx_rate
+
+            # Capital utilized = capital_utilized column if available, else estimate
+            capital_util = float(pos.get("capital_utilized") or 0)
+            if capital_util <= 0 and entry > 0 and qty > 0:
+                capital_util = entry * qty * fx_rate
+            used_margin += capital_util
 
         starting_bal = float(default_bal)
-        equity = round(balance + daily_pnl + unrealized_pnl, 2)
+        # Equity = current balance (which already includes all realised P&L) + unrealized
+        equity = round(balance + unrealized_pnl, 2)
         available = max(0.0, round(balance - used_margin, 2))
         daily_pnl_pct = round((daily_pnl / starting_bal) * 100, 2) if starting_bal > 0 else 0.0
-        daily_loss_limit = starting_bal * 0.05
+        daily_loss_limit = starting_bal * settings.risk.max_daily_loss
         daily_loss_used = abs(daily_pnl) if daily_pnl < 0 else 0.0
         daily_loss_used_pct = round((daily_loss_used / daily_loss_limit) * 100, 1) if daily_loss_limit > 0 else 0.0
 
@@ -1203,7 +1504,7 @@ def create_app(db: Database | None = None) -> FastAPI:
             "today_trades": trade_count,
             "daily_trades_count": trade_count,
             "daily_loss_limit": daily_loss_limit,
-            "daily_loss_limit_pct": 5.0,
+            "daily_loss_limit_pct": settings.risk.max_daily_loss * 100,
             "daily_loss_used": round(daily_loss_used, 2),
             "daily_loss_used_pct": daily_loss_used_pct,
             "circuit_breaker_tripped": (daily_pnl <= -daily_loss_limit),

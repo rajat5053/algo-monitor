@@ -73,7 +73,7 @@ class AlgoMonitor:
 
         # Trading
         self.trading_engine = PaperTradingEngine(
-            self.settings.risk, self.db, self.settings.options
+            self.settings.risk, self.db, self.settings.options, self.settings.exit
         )
 
         # Alerts

@@ -6,8 +6,11 @@ Tables:
 - zones:          Detected support/resistance zones
 - signals:        Generated trading signals
 - trades:         Paper-trade records
+- trade_events:   Persistent audit log for stop/target/partial-exit changes
 - alert_log:      Sent alert history (for deduplication)
 - system_state:   Key-value store for persistent state
+- daily_pnl:      Aggregated daily P&L
+- trade_management: Advisory recommendations per trade
 """
 
 from __future__ import annotations
@@ -84,11 +87,12 @@ class Database:
         return self.execute(sql, params).fetchall()
 
     def initialise(self) -> None:
-        """Create tables if they don't exist. Idempotent."""
+        """Create tables if they don't exist and run migrations. Idempotent."""
         with self._init_lock:
             if self._initialised:
                 return
             self._create_tables()
+            self._migrate()
             self._initialised = True
             logger.info("Database initialised at %s", self.db_path)
 
@@ -124,7 +128,7 @@ class Database:
                     touches         INTEGER NOT NULL DEFAULT 1,
                     first_seen      TEXT    NOT NULL,
                     last_seen       TEXT    NOT NULL,
-                    interval        TEXT    NOT NULL DEFAULT '4h',
+                    interval        TEXT    NOT NULL DEFAULT '',  -- '1d' Indian, '1h' crypto
                     is_active       INTEGER NOT NULL DEFAULT 1,
                     reason          TEXT    NOT NULL DEFAULT ''
                 );
@@ -158,33 +162,67 @@ class Database:
                     ON signals(symbol, exchange, is_active);
 
                 CREATE TABLE IF NOT EXISTS trades (
-                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                    signal_id       INTEGER,
-                    symbol          TEXT    NOT NULL,
-                    exchange        TEXT    NOT NULL,
-                    direction       TEXT    NOT NULL,
-                    trading_mode    TEXT    NOT NULL DEFAULT 'intraday',
-                    status          TEXT    NOT NULL DEFAULT 'open',
-                    quantity        REAL    NOT NULL,
-                    entry_price     REAL    NOT NULL,
-                    entry_time      TEXT    NOT NULL,
-                    stop_loss       REAL    NOT NULL,
-                    target          REAL    NOT NULL,
-                    exit_price      REAL,
-                    exit_time       TEXT,
-                    exit_reason     TEXT,
-                    gross_pnl       REAL    DEFAULT 0,
-                    fees            REAL    DEFAULT 0,
-                    slippage        REAL    DEFAULT 0,
-                    net_pnl         REAL    DEFAULT 0,
-                    risk_amount     REAL    DEFAULT 0,
-                    notes           TEXT    DEFAULT '',
-                    source          TEXT    NOT NULL DEFAULT 'paper',
+                    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                    signal_id           INTEGER,
+                    symbol              TEXT    NOT NULL,
+                    exchange            TEXT    NOT NULL,
+                    direction           TEXT    NOT NULL,
+                    trading_mode        TEXT    NOT NULL DEFAULT 'intraday',
+                    status              TEXT    NOT NULL DEFAULT 'open',
+                    quantity            REAL    NOT NULL,
+                    remaining_quantity  REAL,               -- for partial exits
+                    entry_price         REAL    NOT NULL,
+                    entry_time          TEXT    NOT NULL,
+                    initial_stop_loss   REAL,               -- stop at entry
+                    stop_loss           REAL    NOT NULL,   -- current active stop
+                    target              REAL    NOT NULL,
+                    initial_target      REAL,               -- target at entry
+                    exit_price          REAL,
+                    exit_time           TEXT,
+                    exit_reason         TEXT,
+                    exit_description    TEXT    DEFAULT '',
+                    gross_pnl           REAL    DEFAULT 0,
+                    fees                REAL    DEFAULT 0,
+                    slippage            REAL    DEFAULT 0,
+                    net_pnl             REAL    DEFAULT 0,
+                    risk_amount         REAL    DEFAULT 0,  -- planned cash risk in INR
+                    capital_utilized    REAL    DEFAULT 0,  -- position value in INR
+                    leverage            REAL    DEFAULT 1.0,
+                    notes               TEXT    DEFAULT '',
+                    source              TEXT    NOT NULL DEFAULT 'paper',
+                    trailing_mode       TEXT    DEFAULT 'none',  -- M0..M4 mode
+                    partial_taken       INTEGER DEFAULT 0,
+                    realized_partial_pnl REAL   DEFAULT 0,
+                    highest_favorable_price REAL,               -- peak price for trailing stop (persisted)
                     FOREIGN KEY (signal_id) REFERENCES signals(id)
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_trades_status
                     ON trades(status, symbol);
+
+                -- Persistent audit trail for all stop/target/partial-exit changes
+                CREATE TABLE IF NOT EXISTS trade_events (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trade_id        INTEGER NOT NULL REFERENCES trades(id),
+                    event_time      TEXT    NOT NULL,   -- ISO-8601 UTC
+                    event_type      TEXT    NOT NULL,   -- 'stop_update', 'target_update',
+                                                        --  'partial_exit', 'full_exit',
+                                                        --  'breakeven', 'time_exit',
+                                                        --  'reversal_exit', 'trailing_update'
+                    prev_stop       REAL,
+                    new_stop        REAL,
+                    prev_target     REAL,
+                    new_target      REAL,
+                    quantity_closed REAL    DEFAULT 0,
+                    fill_price      REAL,
+                    gross_pnl       REAL    DEFAULT 0,
+                    fees            REAL    DEFAULT 0,
+                    net_pnl         REAL    DEFAULT 0,
+                    reason          TEXT    NOT NULL DEFAULT ''
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_trade_events_trade_id
+                    ON trade_events(trade_id);
 
                 CREATE TABLE IF NOT EXISTS alert_log (
                     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -230,6 +268,45 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_trade_management_trade_id
                     ON trade_management(trade_id);
             """)
+
+    def _migrate(self) -> None:
+        """
+        Apply incremental schema migrations for existing databases.
+
+        Each migration is safe to run multiple times (checks column/table existence first).
+        """
+        conn = self._get_connection()
+        try:
+            # Migration 1: Add capital_utilized column to trades
+            existing = {row[1] for row in conn.execute("PRAGMA table_info(trades)").fetchall()}
+            migrations = [
+                ("capital_utilized",   "ALTER TABLE trades ADD COLUMN capital_utilized REAL DEFAULT 0"),
+                ("remaining_quantity", "ALTER TABLE trades ADD COLUMN remaining_quantity REAL"),
+                ("initial_stop_loss",  "ALTER TABLE trades ADD COLUMN initial_stop_loss REAL"),
+                ("initial_target",     "ALTER TABLE trades ADD COLUMN initial_target REAL"),
+                ("leverage",           "ALTER TABLE trades ADD COLUMN leverage REAL DEFAULT 1.0"),
+                ("trailing_mode",      "ALTER TABLE trades ADD COLUMN trailing_mode TEXT DEFAULT 'none'"),
+                ("partial_taken",      "ALTER TABLE trades ADD COLUMN partial_taken INTEGER DEFAULT 0"),
+                ("realized_partial_pnl", "ALTER TABLE trades ADD COLUMN realized_partial_pnl REAL DEFAULT 0"),
+                # Trailing stop peak excursion — persisted so state survives restarts
+                ("highest_favorable_price", "ALTER TABLE trades ADD COLUMN highest_favorable_price REAL"),
+                ("exit_description", "ALTER TABLE trades ADD COLUMN exit_description TEXT DEFAULT ''"),
+            ]
+            for col_name, sql in migrations:
+                if col_name not in existing:
+                    conn.execute(sql)
+                    logger.info("Migration: added column '%s' to trades", col_name)
+
+            # Migration 2: Fix zones default interval (was '4h', now '')
+            # This is a DDL change — can only fix future inserts; existing rows are untouched.
+            # (SQLite does not support ALTER COLUMN DEFAULT)
+
+            # Migration 3: Create trade_events table if missing (handled by _create_tables)
+
+            conn.commit()
+            logger.info("Database migrations complete")
+        except Exception as exc:
+            logger.warning("Migration error (non-fatal): %s", exc)
 
     # ---- Convenience helpers for system_state ----
 

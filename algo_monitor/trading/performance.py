@@ -102,7 +102,7 @@ class PerformanceAnalyser:
         source: str = "paper",
         start_date: str = "",
         end_date: str = "",
-        starting_balance: float = 1_000_000,
+        starting_balance: float = 0,
     ) -> PerformanceReport:
         """
         Generate a performance report from closed trades.
@@ -112,9 +112,18 @@ class PerformanceAnalyser:
             source: 'paper' or 'backtest'
             start_date: Filter by exit date (YYYY-MM-DD)
             end_date: Filter by exit date (YYYY-MM-DD)
-            starting_balance: Initial account balance
+            starting_balance: Initial account balance (0 = auto-read from settings)
         """
+        # Resolve starting balance from settings if not explicitly passed
+        if starting_balance <= 0:
+            try:
+                from algo_monitor.config.settings import get_settings
+                starting_balance = get_settings().risk.starting_balance
+            except Exception:
+                starting_balance = 20_000  # Spec baseline
+
         sql = "SELECT * FROM trades WHERE status = 'closed'"
+
         params: list = []
 
         if trading_mode != "all":

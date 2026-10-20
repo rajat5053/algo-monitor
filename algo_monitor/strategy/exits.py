@@ -214,6 +214,30 @@ class AdvancedExitManager:
                         result.new_sl = state.entry_price
                         result.notes = "Partial profit taken; SL moved to breakeven"
 
+        # 4b. Automatic Breakeven / Profit Protection
+        enable_be = getattr(self.config, "enable_breakeven_protection", True)
+        if enable_be:
+            risk = abs(state.entry_price - state.initial_sl)
+            if risk > 0:
+                trigger_r = getattr(self.config, "breakeven_trigger_r", 0.75)
+                buffer_pct = getattr(self.config, "breakeven_buffer_pct", 0.0)
+                if is_long:
+                    peak_r = (state.highest_favorable_price - state.entry_price) / risk
+                    if peak_r >= trigger_r:
+                        target_be = round(state.entry_price * (1.0 + buffer_pct / 100.0), 4)
+                        if state.current_sl < target_be:
+                            state.current_sl = target_be
+                            result.new_sl = target_be
+                            result.notes = f"Breakeven protection activated at +{peak_r:.2f}R; SL moved to {target_be:.4f}"
+                else:
+                    peak_r = (state.entry_price - state.highest_favorable_price) / risk
+                    if peak_r >= trigger_r:
+                        target_be = round(state.entry_price * (1.0 - buffer_pct / 100.0), 4)
+                        if state.current_sl > target_be:
+                            state.current_sl = target_be
+                            result.new_sl = target_be
+                            result.notes = f"Breakeven protection activated at +{peak_r:.2f}R; SL moved to {target_be:.4f}"
+
         # 5. Check Trailing Stop Ratchet
         should_trail = (
             mode in ("atr", "swing") or
@@ -255,7 +279,8 @@ class AdvancedExitManager:
                 if recent_candles:
                     atr_val = calculate_atr(recent_candles)
                 else:
-                    return None
+                    risk = abs(state.entry_price - state.initial_sl)
+                    atr_val = (risk / 1.5) if risk > 0 else (state.entry_price * 0.01)
             if atr_val <= 0:
                 return None
 
