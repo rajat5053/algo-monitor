@@ -4,13 +4,22 @@ import { ThumbsDown, ThumbsUp } from "lucide-react";
 
 const REC = {
   HOLD_CURRENT_PLAN: ["Hold Plan", "indigo"],
+  CONSIDER_TARGET_EXTENSION: ["Extend Target", "up"],
+  CONSIDER_PROFIT_TAKING: ["Take Profit", "amber"],
+  CONSIDER_STOP_TIGHTENING: ["Tighten Stop", "cyan"],
+  EXIT_THESIS_INVALIDATED: ["Exit · Invalidated", "down"],
+  MONITORING_UNAVAILABLE: ["Monitoring N/A", "muted"],
   TRAIL_STOP: ["Trail Stop", "cyan"],
   TAKE_PROFIT_EARLY: ["Take Profit Early", "amber"],
   EXIT_AT_STOP: ["Stop Breached · Exit", "down"],
 };
 
 export const RProgress = ({ adv, testid }) => {
-  const T = Math.max(adv.target_r, 1.01);
+  if (!adv) return <div style={{ minWidth: 190 }} className="dim text-[11px]">—</div>;
+  const targetR = Number(adv.target_r) || 1.5;
+  const rAchieved = Number(adv.r_achieved) || 0;
+  const progressPct = Number(adv.progress_to_target_pct) || 0;
+  const T = Math.max(targetR, 1.01);
   const pos = (x) => ((Math.max(-1, Math.min(T, x)) + 1) / (T + 1)) * 100;
   const e = pos(0), cur = pos(adv.r_achieved);
   const color = adv.r_achieved < 0 ? "var(--down)" : adv.progress_to_target_pct >= 75 ? "var(--amber)" : "var(--up)";
@@ -37,16 +46,20 @@ export const RProgress = ({ adv, testid }) => {
 };
 
 export const AdvisoryBadge = ({ adv, testid }) => {
-  const [l, t] = REC[adv.recommendation] || [adv.recommendation, ""];
+  if (!adv) return <span className="dim text-[11px]">—</span>;
+  const rec = adv.recommendation || "HOLD_CURRENT_PLAN";
+  const [l, t] = REC[rec] || [rec.replace(/_/g, " "), "indigo"];
+  const evFor = Array.isArray(adv.evidence_for) ? adv.evidence_for : [];
+  const evAgainst = Array.isArray(adv.evidence_against) ? adv.evidence_against : [];
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button className={`bdg bdg-${t} cursor-help`} data-testid={testid}>{l}</button>
+        <button className={`bdg bdg-${t || "indigo"} cursor-help`} data-testid={testid}>{l}</button>
       </TooltipTrigger>
       <TooltipContent side="left" className="max-w-[300px] p-3" style={{ background: "#0b1222", border: "1px solid rgba(255,255,255,0.12)" }}>
-        <div className="text-[11px] font-semibold mb-2 num" style={{ color: "var(--text-hi)" }}>{adv.recommendation} · Eval. target {px(adv.evaluated_target)}</div>
-        {adv.evidence_for.map((x) => <div key={x} className="flex gap-1.5 text-[11px] up"><ThumbsUp size={11} className="mt-0.5 shrink-0" />{x}</div>)}
-        {adv.evidence_against.map((x) => <div key={x} className="flex gap-1.5 text-[11px] down mt-0.5"><ThumbsDown size={11} className="mt-0.5 shrink-0" />{x}</div>)}
+        <div className="text-[11px] font-semibold mb-2 num" style={{ color: "var(--text-hi)" }}>{rec} · Eval. target {px(adv.evaluated_target)}</div>
+        {evFor.map((x) => <div key={x} className="flex gap-1.5 text-[11px] up"><ThumbsUp size={11} className="mt-0.5 shrink-0" />{x}</div>)}
+        {evAgainst.map((x) => <div key={x} className="flex gap-1.5 text-[11px] down mt-0.5"><ThumbsDown size={11} className="mt-0.5 shrink-0" />{x}</div>)}
       </TooltipContent>
     </Tooltip>
   );

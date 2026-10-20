@@ -4505,6 +4505,11 @@ var _jsxFileName = "/app/frontend/src/components/terminal/PositionParts.jsx";
 
 const REC = {
   HOLD_CURRENT_PLAN: ["Hold Plan", "indigo"],
+  CONSIDER_TARGET_EXTENSION: ["Extend Target", "up"],
+  CONSIDER_PROFIT_TAKING: ["Take Profit", "amber"],
+  CONSIDER_STOP_TIGHTENING: ["Tighten Stop", "cyan"],
+  EXIT_THESIS_INVALIDATED: ["Exit · Invalidated", "down"],
+  MONITORING_UNAVAILABLE: ["Monitoring N/A", "muted"],
   TRAIL_STOP: ["Trail Stop", "cyan"],
   TAKE_PROFIT_EARLY: ["Take Profit Early", "amber"],
   EXIT_AT_STOP: ["Stop Breached · Exit", "down"]
@@ -14104,7 +14109,7 @@ const AdvisoryCard = ({
   p
 }) => {
   const a = p.advisory;
-  const [l, t] = _components_terminal_PositionParts__WEBPACK_IMPORTED_MODULE_4__.REC_LABEL[a.recommendation];
+  const [l, t] = (_components_terminal_PositionParts__WEBPACK_IMPORTED_MODULE_4__.REC_LABEL[a.recommendation] || [String(a.recommendation || "Hold Plan").replace(/_/g, " "), "indigo"]);
   return /*#__PURE__*/(0,react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_12__.jsxDEV)("div", {
     className: "panel panel-body",
     "data-testid": `advisory-card-${p.symbol}`,
@@ -14810,8 +14815,9 @@ function PositionsTab() {
     data
   } = (0,_hooks_usePoll__WEBPACK_IMPORTED_MODULE_1__.usePoll)(() => (0,_lib_api__WEBPACK_IMPORTED_MODULE_2__.get)("/positions"), []);
   const [sel, setSel] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(null);
-  const active = (data === null || data === void 0 ? void 0 : data.open.find(p => p.id === sel)) || (data === null || data === void 0 ? void 0 : data.open[0]);
-  const total = data === null || data === void 0 ? void 0 : data.open.reduce((s, p) => s + p.unrealized_pnl_inr, 0);
+  const _open = (data && Array.isArray(data.open)) ? data.open : [];
+  const active = _open.find(p => p.id === sel) || _open[0] || null;
+  const total = ((data && Array.isArray(data.open)) ? data.open : []).reduce((s, p) => s + (Number(p.unrealized_pnl_inr) || 0), 0);
   return /*#__PURE__*/(0,react_jsx_dev_runtime__WEBPACK_IMPORTED_MODULE_12__.jsxDEV)("div", {
     className: "am-stack",
     "x-file-name": "PositionsTab",

@@ -204,6 +204,25 @@ class AlertManager:
                 logger.error("Notifier %s failed: %s", notifier.channel_name, exc)
         return sent
 
+    def _is_duplicate(self, msg_hash: str, now: float) -> bool:
+        """Check if message hash was recently sent or already logged in database."""
+        if msg_hash in self._last_alert_time:
+            elapsed = now - self._last_alert_time[msg_hash]
+            if elapsed < self.RATE_LIMIT_SECONDS:
+                return True
+
+        if self._db:
+            try:
+                existing = self._db.fetchone(
+                    "SELECT id FROM alert_log WHERE message_hash = ?",
+                    (msg_hash,),
+                )
+                if existing:
+                    return True
+            except Exception:
+                pass
+        return False
+
     def send_trade_management_alert(self, evaluation: Any) -> bool:
         """
         Send a trade management advisory alert for an open position (P2-B, P2-C).
