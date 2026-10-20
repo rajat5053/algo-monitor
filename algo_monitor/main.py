@@ -437,12 +437,19 @@ class AlgoMonitor:
         def is_port_available(h: str, p: int) -> bool:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 try:
+                    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                     s.bind((h, p))
                     return True
                 except OSError:
                     return False
 
-        # If port is occupied (e.g. another dashboard running), auto-select next available port
+        # If previous instance just exited, wait briefly for port to clear before jumping
+        for _ in range(3):
+            if is_port_available(host, port):
+                break
+            time.sleep(1)
+
+        # If port is still occupied by an external app, auto-select next available port
         while not is_port_available(host, port) and port < self.settings.dashboard_port + 50:
             logger.warning("Port %d is already in use, trying port %d...", port, port + 1)
             port += 1
